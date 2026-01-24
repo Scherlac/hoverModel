@@ -397,6 +397,87 @@ compact_physics = HovercraftPhysics({
    - Terrain interaction
    - Sensor simulation (lidar, camera)
 
+## Additional Resources
+
+### Software Engineering Principles
+
+**SOLID Principles:**
+- [SOLID Principles - Robert C. Martin](https://blog.cleancoder.com/uncle-bob/2020/10/18/Solid-Relevance.html)
+- [Design Principles and Design Patterns - Robert C. Martin](http://www.objectmentor.com/resources/articles/Principles_and_Patterns.pdf)
+
+**Clean Architecture:**
+- [Clean Architecture: A Craftsman's Guide to Software Structure - Robert C. Martin](https://www.amazon.com/Clean-Architecture-Craftsmans-Software-Structure/dp/0134494164)
+- [The Clean Architecture - Robert C. Martin (Original Article)](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+
+**Design Patterns:**
+- [Design Patterns: Elements of Reusable Object-Oriented Software - Gang of Four](https://www.amazon.com/Design-Patterns-Elements-Reusable-Object-Oriented/dp/0201633612)
+- [Head First Design Patterns - Eric Freeman & Elisabeth Robson](https://www.amazon.com/Head-First-Design-Patterns-Freeman/dp/0596007124)
+
+### Technical Documentation
+
+**Libraries Used:**
+- [Open3D Documentation](https://www.open3d.org/docs/) - 3D visualization and processing
+- [NumPy Documentation](https://numpy.org/doc/) - Vectorized mathematical operations
+- [Click Documentation](https://click.palletsprojects.com/) - Command-line interface framework
+- [FFmpeg Documentation](https://ffmpeg.org/documentation.html) - Video encoding
+
+**Python Resources:**
+- [PEP 8 - Style Guide for Python Code](https://peps.python.org/pep-0008/)
+- [PEP 484 - Type Hints](https://peps.python.org/pep-0484/)
+- [Python Typing Documentation](https://docs.python.org/3/library/typing.html)
+
+### Physics and Simulation
+
+**Physics Simulation:**
+- [Game Physics Engine Development - Ian Millington](https://www.amazon.com/Game-Physics-Engine-Development-Commercial-Grade/dp/0123819768)
+- [Real-Time Collision Detection - Christer Ericson](https://www.amazon.com/Real-Time-Collision-Detection-Interactive-Technology/dp/1558607323)
+
+**Numerical Integration:**
+- [Numerical Recipes: The Art of Scientific Computing - Press et al.](https://www.amazon.com/Numerical-Recipes-3rd-Scientific-Computing/dp/0521880688)
+- [Runge-Kutta Methods - Wikipedia](https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods)
+
+### Reinforcement Learning
+
+**Gymnasium (Formerly OpenAI Gym):**
+- [Gymnasium Documentation](https://gymnasium.farama.org/) - RL environment standard
+- [Reinforcement Learning: An Introduction - Sutton & Barto](https://www.andrew.cmu.edu/course/10-703/textbook/BartoSutton.pdf)
+
+**RL Environments:**
+- [Farama Foundation Environments](https://farama.org/) - Collection of RL environments
+- [PettingZoo](https://pettingzoo.farama.org/) - Multi-agent RL environments
+
+### Related Projects
+
+**Similar Simulation Environments:**
+- [PyBullet](https://pybullet.org/) - Physics simulation for robotics and RL
+- [MuJoCo](https://mujoco.org/) - Advanced physics engine
+- [Box2D](https://box2d.org/) - 2D physics engine
+- [Bullet Physics](https://pybullet.org/) - 3D physics simulation
+
+**Python Simulation Frameworks:**
+- [Pygame](https://www.pygame.org/) - 2D game development
+- [Pyglet](https://pyglet.org/) - Multimedia library
+- [Panda3D](https://www.panda3d.org/) - 3D game engine
+
+### Development Tools
+
+**Version Control:**
+- [Git Documentation](https://git-scm.com/doc)
+- [Conventional Commits](https://conventionalcommits.org/)
+
+**Python Development:**
+- [Black - Code Formatter](https://black.readthedocs.io/)
+- [isort - Import Sorter](https://pycqa.github.io/isort/)
+- [mypy - Type Checker](https://mypy.readthedocs.io/)
+- [pytest - Testing Framework](https://docs.pytest.org/)
+
+### Academic Papers
+
+**Relevant Research:**
+- [Deep Reinforcement Learning - Mnih et al. (Nature, 2015)](https://www.nature.com/articles/nature14236)
+- [Proximal Policy Optimization - Schulman et al. (2017)](https://arxiv.org/abs/1707.06347)
+- [Soft Actor-Critic - Haarnoja et al. (2018)](https://arxiv.org/abs/1801.01290)
+
 ## Contributing
 
 The physics simulation and modular demonstration system are complete and tested. The codebase follows clean architecture principles with separated concerns. Contributions welcome for:
