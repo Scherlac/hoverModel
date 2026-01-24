@@ -76,7 +76,7 @@ def create_video():
 
     # Create video with ffmpeg
     try:
-        os.system(f'ffmpeg -y -framerate 20 -i {frames_dir}/frame_%04d.png -c:v libx264 -pix_fmt yuv420p hovercraft_demo.mp4')
+        os.system(f'ffmpeg -y -framerate 20 -i {frames_dir}/frame_%04d.png -vf "scale=1920:1060" -c:v libx264 -pix_fmt yuv420p hovercraft_demo.mp4')
         print("Video created: hovercraft_demo.mp4")
     except:
         print("FFmpeg not available, frames saved in 'frames' directory")
