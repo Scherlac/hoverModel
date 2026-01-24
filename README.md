@@ -49,6 +49,8 @@ python main.py
 
 This will open an Open3D 3D visualization window showing the hovercraft moving within the fenced training area.
 
+**Note:** On Windows command line, GUI windows may not be visible. The visualization works correctly for video capture (see below) and in Python IDEs/Jupyter notebooks.
+
 ### Testing Physics
 Run the physics tests:
 ```bash
@@ -63,7 +65,34 @@ Create a demonstration video:
 python demo.py video
 ```
 
-This captures frames from the 3D Open3D visualization and creates `hovercraft_demo.mp4` in the project directory.
+## Architecture
+
+The codebase follows SOLID principles with a composable architecture:
+
+### Components
+- **`physics.py`**: Physics engine with abstract `PhysicsEngine` base class
+- **`visualization.py`**: Visualization backends with abstract `Visualizer` base class  
+- **`environment.py`**: Main environment orchestrating physics and visualization
+- **`demo.py`**: Demonstration and testing utilities
+
+### Design Benefits
+- **High Cohesion**: Each component has a single, well-defined responsibility
+- **Low Coupling**: Components communicate through abstractions, not concrete implementations
+- **Testability**: Physics can be tested independently of visualization
+- **Extensibility**: Easy to add new physics models or visualization backends
+- **Composition**: Components can be mixed and matched via dependency injection
+
+### Usage Examples
+```python
+# Default configuration
+env = HovercraftEnv()
+
+# Custom physics with null visualization (for testing)
+from physics import HovercraftPhysics
+from visualization import NullVisualizer
+physics = HovercraftPhysics({'mass': 2.0})
+env = HovercraftEnv(physics_engine=physics, visualizer=NullVisualizer({}))
+```
 ```
 
 This will open an Open3D visualization window showing the hovercraft moving within the fenced training area.
