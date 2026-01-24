@@ -42,16 +42,14 @@ class HovercraftEnv:
         return {
             'mass': 1.0,
             'momentum': 0.1,
-            'gravity': -9.81,
+            'gravity': [0.0, 0.0, -9.81],
             'dt': 0.01,
             'lift_mean': 10.0,
             'lift_std': 1.0,
             'rot_mean': 0.1,
             'rot_std': 0.5,
             'friction_k': 0.1,
-            'x_bounds': (-5, 5),
-            'y_bounds': (-5, 5),
-            'z_bounds': (0, 10),
+            'bounds': [[-5, 5], [-5, 5], [0, 10]],
             'visualization': True
         }
 

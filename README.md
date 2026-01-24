@@ -92,9 +92,30 @@ The physics engine uses **vectorized NumPy operations** for efficient computatio
 - **Integration**: Efficient tensor operations for state updates
 
 This provides better performance and cleaner code compared to scalar operations.
-```
 
-This will open an Open3D visualization window showing the hovercraft moving within the fenced training area.
+### Usage Examples
+```python
+# Default configuration
+env = HovercraftEnv()
+
+# Custom physics with null visualization (for testing)
+from physics import HovercraftPhysics
+from visualization import NullVisualizer
+physics = HovercraftPhysics({'mass': 2.0})
+env = HovercraftEnv(physics_engine=physics, visualizer=NullVisualizer({}))
+
+# Vector gravity (e.g., simulating wind effects)
+wind_physics = HovercraftPhysics({
+    'gravity': [0.5, 0.0, -9.81],  # [x, y, z] gravity vector
+    'bounds': [[-10, 10], [-10, 10], [0, 15]]  # [[x_min, x_max], [y_min, y_max], [z_min, z_max]]
+})
+env = HovercraftEnv(physics_engine=wind_physics)
+
+# Compact bounds configuration
+compact_physics = HovercraftPhysics({
+    'bounds': [[-5, 5], [-5, 5], [0, 10]]  # Clean array format
+})
+```
 
 ## Future Steps
 

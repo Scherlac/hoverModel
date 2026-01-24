@@ -93,18 +93,16 @@ def create_video():
     shutil.rmtree(frames_dir)
 
 def demo_composition():
-    """Demonstrate component composition and interchangeability."""
+    """Demonstrate component composition and vectorized configuration."""
     print("Demonstrating component composition...")
 
-    # Create custom physics with different parameters
+    # Example 1: Custom physics with heavier hovercraft
     custom_config = {
         'mass': 2.0,  # Heavier hovercraft
         'lift_mean': 20.0,  # Stronger lift
         'friction_k': 0.05  # Less friction
     }
     physics = HovercraftPhysics(custom_config)
-
-    # Use null visualizer for headless operation
     env = HovercraftEnv(physics_engine=physics, visualizer=NullVisualizer({}))
 
     print("Testing with custom physics (heavier, stronger lift, less friction)...")
@@ -116,6 +114,44 @@ def demo_composition():
             print(f"Step {i}: Position ({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f})")
 
     env.close()
+
+    # Example 2: Vector gravity (simulating wind or different gravity direction)
+    print("\nTesting with vector gravity (simulating horizontal wind)...")
+    wind_config = {
+        'mass': 1.0,
+        'gravity': [0.5, 0.0, -9.81],  # Horizontal wind + vertical gravity
+        'bounds': [[-10, 10], [-10, 10], [0, 15]]  # Simplified array format
+    }
+    physics_wind = HovercraftPhysics(wind_config)
+    env_wind = HovercraftEnv(physics_engine=physics_wind, visualizer=NullVisualizer({}))
+
+    env_wind.reset()
+    for i in range(30):
+        env_wind.step([0, 0])  # No control, let wind affect motion
+        if i % 10 == 0:
+            pos = env_wind.position
+            print(f"Step {i}: Position ({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f})")
+
+    env_wind.close()
+
+    # Example 3: Compact bounds configuration (same as example 2 but showing it's the same)
+    print("\nTesting with compact bounds array...")
+    compact_config = {
+        'bounds': [[-3, 3], [-3, 3], [0, 5]]  # Clean array format: [x_bounds, y_bounds, z_bounds]
+    }
+    physics_compact = HovercraftPhysics(compact_config)
+    env_compact = HovercraftEnv(physics_engine=physics_compact, visualizer=NullVisualizer({}))
+
+    env_compact.reset()
+    env_compact.state[0] = -2.5  # Start near boundary
+    for i in range(20):
+        env_compact.step([0.8, 0.2])  # Forward force with rotation
+        if i % 5 == 0:
+            pos = env_compact.position
+            print(f"Step {i}: Position ({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f})")
+
+    env_compact.close()
+
     print("Composition demo completed.")
 
 if __name__ == "__main__":

@@ -25,35 +25,29 @@ class HovercraftPhysics(PhysicsEngine):
     def __init__(self, config: dict):
         self.mass = config.get('mass', 1.0)
         self.I = config.get('momentum', 0.1)
-        self.gravity = config.get('gravity', -9.81)
 
-        # Force parameters
+        # Gravity vector (3D) - allows for non-vertical gravity or wind effects
+        gravity_config = config.get('gravity', [0.0, 0.0, -9.81])
+        self.gravity_vector = np.array(gravity_config)
+
+        # Force parameters (scalars for now, could be extended to vectors)
         self.lift_mean = config.get('lift_mean', 10.0)
         self.lift_std = config.get('lift_std', 1.0)
         self.rot_mean = config.get('rot_mean', 0.1)
         self.rot_std = config.get('rot_std', 0.5)
         self.friction_k = config.get('friction_k', 0.1)
 
-        # Bounds as vectors for efficient checking
-        self.bounds_min = np.array([
-            config.get('x_bounds', (-5, 5))[0],
-            config.get('y_bounds', (-5, 5))[0],
-            config.get('z_bounds', (0, 10))[0]
-        ])
-        self.bounds_max = np.array([
-            config.get('x_bounds', (-5, 5))[1],
-            config.get('y_bounds', (-5, 5))[1],
-            config.get('z_bounds', (0, 10))[1]
-        ])
-
-        # Pre-compute gravity vector
-        self.gravity_vector = np.array([0.0, 0.0, self.gravity])
+        # Bounds configuration - simplified array format: [[x_min, x_max], [y_min, y_max], [z_min, z_max]]
+        bounds_config = config.get('bounds', [[-5, 5], [-5, 5], [0, 10]])
+        bounds_array = np.array(bounds_config)
+        self.bounds_min = bounds_array[:, 0]
+        self.bounds_max = bounds_array[:, 1]
 
         # Store bounds in dict format for compatibility
         self.bounds = {
-            'x': config.get('x_bounds', (-5, 5)),
-            'y': config.get('y_bounds', (-5, 5)),
-            'z': config.get('z_bounds', (0, 10))
+            'x': (self.bounds_min[0], self.bounds_max[0]),
+            'y': (self.bounds_min[1], self.bounds_max[1]),
+            'z': (self.bounds_min[2], self.bounds_max[2])
         }
 
     def step(self, state: np.ndarray, action: np.ndarray, dt: float) -> np.ndarray:
