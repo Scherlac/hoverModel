@@ -1,7 +1,7 @@
 [project]
 name = "hovermodel"
 version = "0.1.0"
-description = "Add your description here"
+description = "A reinforcement learning environment simulation for a hovercraft with 3D visualization"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -10,4 +10,4 @@ dependencies = [
 ]
 
 [tool.setuptools]
-py-modules = ["main", "test_demo"]
+py-modules = ["main", "test_demo", "video_demo"]

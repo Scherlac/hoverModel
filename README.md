@@ -12,6 +12,8 @@ A simple reinforcement learning environment simulation for a hovercraft using Op
 - Controlled forward thrust and rotational torque
 - 3D visualization with Open3D
 - Test suite demonstrating all physics behaviors
+- Video generation from 3D visualization (MP4 format)
+- All features tested and validated
 
 ⚠️ **Requirements:**
 - Python >= 3.12 (for Open3D compatibility)
@@ -30,6 +32,14 @@ pip install -e .
 ```
 
 This installs numpy and Open3D for the physics simulation and 3D visualization.
+
+## Project Structure
+
+- `main.py` - Core hovercraft environment with physics simulation and Open3D visualization
+- `test_demo.py` - Console-based physics testing suite
+- `video_demo.py` - Open3D screen capture for video generation
+- `pyproject.toml` - Project configuration and dependencies
+- `README.md` - This documentation file
 
 ## Usage
 
@@ -58,7 +68,7 @@ Run the video demonstration using Open3D screen capture:
 python video_demo.py
 ```
 
-This captures frames from the 3D Open3D visualization and creates `hovercraft_demo_open3d.mp4` showing the hovercraft movement in 3D space.
+This captures frames from the 3D Open3D visualization and creates `hovercraft_demo_open3d.mp4` in the project directory, showing the hovercraft movement in 3D space.
 ```
 
 This will open an Open3D visualization window showing the hovercraft moving within the fenced training area.
@@ -102,4 +112,4 @@ The physics simulation is complete and tested. Contributions welcome for:
 
 ## License
 
-Add your license here
+MIT License
