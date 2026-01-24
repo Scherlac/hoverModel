@@ -13,6 +13,8 @@ A simple reinforcement learning environment simulation for a hovercraft using Op
 - 3D visualization with Open3D
 - Test suite demonstrating all physics behaviors
 - Video generation from 3D visualization (MP4 format)
+- **Modular demonstration system** with interchangeable control sources and output handlers
+- **Comprehensive CLI interface** for easy demonstrations and testing
 - All features tested and validated
 
 ⚠️ **Requirements:**
@@ -47,35 +49,74 @@ This installs numpy and Open3D for the physics simulation and 3D visualization.
 
 ## Usage
 
-Run the simulation with 3D visualization:
+### Quick Start
+Run all physics tests to see the hovercraft behaviors:
+```bash
+python demo.py
+```
+
+### Individual Demonstrations
+Test specific movement patterns:
+```bash
+python demo.py hover              # Test hovering (no control inputs)
+python demo.py linear             # Test forward movement
+python demo.py rotate             # Test rotational movement
+python demo.py sinusoid           # Test combined sinusoidal motion
+python demo.py chaotic            # Test boundary bouncing behavior
+```
+
+### Video Creation
+Create demonstration videos:
+```bash
+python demo.py video sinusoid     # Create sinusoidal movement video
+python demo.py video chaotic      # Create boundary bouncing video
+python demo.py video linear --steps 100 --fps 30 --output my_demo.mp4
+```
+
+### Advanced Options
+```bash
+python demo.py --help             # Show all available commands and options
+```
+
+**Options:**
+- `--steps STEPS` - Number of simulation steps (default: 50 for tests, 200 for video)
+- `--fps FPS` - Video frame rate (default: 25)
+- `--output FILE` - Output video filename (default: hovercraft_demo.mp4)
+
+### 3D Visualization
+Run the interactive 3D visualization:
 ```bash
 python main.py
 ```
 
 This will open an Open3D 3D visualization window showing the hovercraft moving within the fenced training area.
 
-**Note:** On Windows command line, GUI windows may not be visible. The visualization works correctly for video capture (see below) and in Python IDEs/Jupyter notebooks.
+**Note:** On Windows command line, GUI windows may not be visible. The visualization works correctly for video capture and in Python IDEs/Jupyter notebooks.
 
-### Testing Physics
-Run the physics tests:
+### Command Line Interface (CLI)
+The demo system features a comprehensive CLI for easy experimentation:
+
+**Available Control Types:**
+- `hover` - Hovering (zero control inputs)
+- `linear` - Constant forward thrust
+- `rotate` - Pure rotational movement
+- `sinusoid` - Combined sinusoidal motion
+- `chaotic` - High-amplitude boundary testing
+
+**Common Commands:**
 ```bash
-python demo.py
+# Run demonstrations
+python demo.py hover              # Quick hover test
+python demo.py linear --steps 100 # Extended linear test
+
+# Create videos
+python demo.py video sinusoid     # Standard video
+python demo.py video chaotic      # Boundary bouncing video
+python demo.py video linear --fps 30 --output custom.mp4
+
+# Get help
+python demo.py --help
 ```
-
-This runs tests for hovering, movement, and rotation behaviors.
-
-### Creating Demo Video
-Create a demonstration video:
-```bash
-python demo.py video
-```
-
-Create a boundary bouncing demonstration video:
-```bash
-python demo.py bounce
-```
-
-This video shows the hovercraft colliding with and bouncing off the training boundaries.
 
 ## Architecture
 
@@ -122,8 +163,9 @@ The physics engine uses **vectorized NumPy operations** for efficient computatio
 This provides better performance and cleaner code compared to scalar operations.
 
 ### Modular Demo System
-The demonstration system uses composition to combine control sources with output handlers:
+The demonstration system uses composition to combine control sources with output handlers, accessible through both programmatic API and CLI:
 
+**Programmatic Usage:**
 ```python
 from control_sources import ControlSourceFactory
 from demo_outputs import DemoRunner
@@ -144,9 +186,31 @@ runner.create_video(control, "demo.mp4", steps=200, fps=25)
 runner.create_bouncing_video(control, "bounce.mp4", steps=300)
 ```
 
+**CLI Usage:**
+```bash
+# Equivalent CLI commands
+python demo.py sinusoid --steps 50
+python demo.py video sinusoid --steps 200 --fps 25 --output demo.mp4
+python demo.py video chaotic --steps 300 --output bounce.mp4
+```
+
 This architecture allows testing any control strategy with any output format without code duplication.
 
 ### Usage Examples
+
+**CLI Commands:**
+```bash
+# Quick demonstrations
+python demo.py hover              # Test stability
+python demo.py linear             # Test forward movement
+python demo.py chaotic            # Test boundary interactions
+
+# Video creation
+python demo.py video sinusoid     # Create smooth motion video
+python demo.py video chaotic      # Create dynamic bouncing video
+```
+
+**Programmatic API:**
 ```python
 # Default configuration
 env = HovercraftEnv()
@@ -217,11 +281,14 @@ compact_physics = HovercraftPhysics({
 
 ## Contributing
 
-The physics simulation is complete and tested. Contributions welcome for:
-- Alternative visualization implementations
-- RL integration
-- Additional physics features
-- Performance improvements
+The physics simulation and modular demonstration system are complete and tested. Contributions welcome for:
+- Additional control source implementations (new movement patterns)
+- Alternative visualization backends
+- Enhanced CLI features and commands
+- RL integration and reward function design
+- Additional physics features and environmental effects
+- Performance improvements and optimizations
+- Multi-agent scenarios and advanced features
 
 ## License
 
