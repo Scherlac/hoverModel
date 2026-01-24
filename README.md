@@ -143,6 +143,10 @@ python demo.py --help
 The codebase follows SOLID principles with a highly composable, modular architecture:
 
 ### Components
+- **`state.py`**: State representation and management
+  - `HovercraftState` - Encapsulated state with load/save operations
+  - Single source of truth for state format and operations
+  - Provides semantic accessors and validation
 - **`control_sources.py`**: Control signal generators with abstract `ControlSource` base class
   - `HoveringControl` - Zero control signals for stability testing
   - `LinearMovementControl` - Constant forward thrust
@@ -165,6 +169,8 @@ The codebase follows SOLID principles with a highly composable, modular architec
 ### Design Benefits
 - **High Cohesion**: Each component has a single, well-defined responsibility
 - **Low Coupling**: Components communicate through abstractions, not concrete implementations
+- **Single State Representation**: `HovercraftState` class owns all state operations
+- **State Ownership**: Environment owns the state, physics operates on it
 - **Strategy Pattern**: Interchangeable control sources and output handlers
 - **Factory Pattern**: Clean object creation for control sources
 - **Composition over Inheritance**: Flexible combination of control and output strategies
@@ -217,6 +223,38 @@ python demo.py video chaotic --steps 300 --output bounce.mp4
 ```
 
 This architecture allows testing any control strategy with any output format without code duplication.
+
+### State Management System
+
+The `HovercraftState` class provides a single, consistent state representation:
+
+**State Vector Format:**
+```python
+[x, y, z, theta, vx, vy, vz, omega_z]
+```
+
+**Key Features:**
+- **Encapsulation**: State operations are centralized in one class
+- **Validation**: Automatic validation of state values
+- **Persistence**: Load/save state to/from JSON files
+- **Semantic Access**: Properties for position, velocity, orientation
+- **Type Safety**: Clear interfaces for state operations
+
+**Usage:**
+```python
+from state import HovercraftState
+
+# Create default state
+state = HovercraftState()
+
+# Access components semantically
+state.x = 1.0
+state.velocity = [0.5, 0.0, 0.1]
+
+# Save/load state
+state.save("checkpoint.json")
+state = HovercraftState.load("checkpoint.json")
+```
 
 ### Recent Architectural Improvements
 

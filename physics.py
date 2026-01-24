@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
+from state import BodyState
 
 class PhysicsEngine(ABC):
     """Abstract base class for physics simulation."""
@@ -10,7 +11,7 @@ class PhysicsEngine(ABC):
         pass
 
     @abstractmethod
-    def step(self, state: np.ndarray, action: np.ndarray, dt: float) -> np.ndarray:
+    def step(self, state: BodyState, action: np.ndarray, dt: float) -> BodyState:
         """Compute next state given current state and action."""
         pass
 
@@ -20,7 +21,15 @@ class PhysicsEngine(ABC):
         pass
 
 class HovercraftPhysics(PhysicsEngine):
-    """Newtonian physics for hovercraft simulation using vector operations."""
+    """Newtonian physics for hovercraft simulation using vector operations.
+
+    State vector format (8 elements):
+    [x, y, z, theta, vx, vy, vz, omega_z]
+    - x, y, z: position coordinates
+    - theta: orientation angle (radians)
+    - vx, vy, vz: velocity components
+    - omega_z: angular velocity around z-axis
+    """
 
     def __init__(self, config: dict):
         self.mass = config.get('mass', 1.0)
@@ -50,62 +59,58 @@ class HovercraftPhysics(PhysicsEngine):
             'z': (self.bounds_min[2], self.bounds_max[2])
         }
 
-    def step(self, state: np.ndarray, action: np.ndarray, dt: float) -> np.ndarray:
-        """Apply Newtonian physics to compute next state using vector operations."""
-        # Unpack state vector
-        position = state[:3]      # [x, y, z]
-        theta = state[3]          # orientation
-        velocity = state[4:7]     # [vx, vy, vz]
-        omega_z = state[7]        # angular velocity
+    def step(self, state: BodyState, action: np.ndarray, dt: float) -> BodyState:
+        """Apply Newtonian physics using vectorized operations.
+
+        Args:
+            state: Current BodyState object
+            action: Action vector [forward_force, rotation_torque]
+            dt: Time step duration
+
+        Returns:
+            next_state: Updated BodyState object
+        """
+        # Extract state components using BodyState properties
+        r = state.r.copy()      # position vector [x, y, z]
+        theta = state.theta     # orientation angle
+        v = state.v.copy()      # velocity vector [vx, vy, vz]
+        omega = state.omega     # angular velocity
 
         # Unpack action
-        forward_force, rotation_torque = action
+        F_forward, T_torque = action
 
-        # Random forces (vectorized)
+        # Random forces
         F_lift = np.random.normal(self.lift_mean, self.lift_std)
         T_rot = np.random.normal(self.rot_mean, self.rot_mean)
 
-        # Controlled forces (vectorized)
         # Forward force in direction of orientation
-        forward_direction = np.array([np.cos(theta), np.sin(theta), 0.0])
-        F_forward = forward_force * forward_direction
+        F_dir = F_forward * np.array([np.cos(theta), np.sin(theta), 0.0])
 
-        # Friction force (proportional to height and velocity)
-        # F_friction = -k * z * v for each component
-        friction_coefficient = self.friction_k * position[2]  # z component
-        F_friction = -friction_coefficient * velocity
+        # Friction force (proportional to height)
+        F_friction = -self.friction_k * r[2] * v
 
-        # Total force vector (3D)
-        F_total = F_forward + F_friction + np.array([0.0, 0.0, F_lift]) + self.mass * self.gravity_vector
+        # Total force and torque
+        F_total = F_dir + F_friction + np.array([0.0, 0.0, F_lift]) + self.mass * self.gravity_vector
+        T_total = T_rot + T_torque
 
-        # Torque (scalar for 2D rotation)
-        T_total = T_rot + rotation_torque
+        # Integrate (vectorized)
+        a = F_total / self.mass          # acceleration
+        alpha = T_total / self.I         # angular acceleration
 
-        # Accelerations (vectorized)
-        acceleration = F_total / self.mass
-        alpha_z = T_total / self.I
+        v_new = v + a * dt               # velocity integration
+        omega_new = omega + alpha * dt   # angular velocity integration
 
-        # Integrate velocities (vectorized)
-        velocity_new = velocity + acceleration * dt
-        omega_z_new = omega_z + alpha_z * dt
-
-        # Integrate positions (vectorized)
-        position_new = position + velocity_new * dt
-        theta_new = theta + omega_z_new * dt
+        r_new = r + v_new * dt           # position integration
+        theta_new = theta + omega_new * dt  # orientation integration
 
         # Boundary collisions (vectorized bounce)
-        # Check lower bounds
-        below_min = position_new < self.bounds_min
-        position_new = np.where(below_min, self.bounds_min, position_new)
-        velocity_new = np.where(below_min, -velocity_new, velocity_new)
-
-        # Check upper bounds
-        above_max = position_new > self.bounds_max
-        position_new = np.where(above_max, self.bounds_max, position_new)
-        velocity_new = np.where(above_max, -velocity_new, velocity_new)
+        r_new = np.clip(r_new, self.bounds_min, self.bounds_max)
+        v_new = np.where(r_new == self.bounds_min, -v_new, v_new)
+        v_new = np.where(r_new == self.bounds_max, -v_new, v_new)
 
         # Reconstruct state vector
-        return np.concatenate([position_new, [theta_new], velocity_new, [omega_z_new]])
+        new_state = np.concatenate([r_new, [theta_new], v_new, [omega_new]])
+        return BodyState(r=r_new, v=v_new, theta=theta_new, omega=omega_new)
 
     def get_bounds(self) -> dict:
         return self.bounds

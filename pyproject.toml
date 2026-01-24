@@ -11,4 +11,4 @@ dependencies = [
 ]
 
 [tool.setuptools]
-py-modules = ["main", "demo", "physics", "visualization", "environment", "control_sources", "simulation_outputs", "demo_runner"]
+py-modules = ["main", "demo", "physics", "visualization", "environment", "control_sources", "simulation_outputs", "demo_runner", "state"]

@@ -1,6 +1,13 @@
 """
 Demo runner for orchestrating different hovercraft demonstrations.
 Handles demo configuration and execution using simulation outputs.
+
+State vector format (8 elements):
+[x, y, z, theta, vx, vy, vz, omega_z]
+- x, y, z: position coordinates
+- theta: orientation angle (radians)
+- vx, vy, vz: velocity components
+- omega_z: angular velocity around z-axis
 """
 
 from typing import Optional, Tuple
@@ -13,6 +20,7 @@ from simulation_outputs import (
 from environment import HovercraftEnv
 from visualization import NullVisualizer, Visualizer
 from control_sources import ControlSource
+from state import BodyState
 
 
 class DemoRunner:
@@ -77,12 +85,9 @@ class BouncingVideoDemo(VideoSimulationOutput):
             ctr.set_up([0, 0, 1])
 
         # Set initial conditions for bouncing
-        self.env.state[0] = 4.9  # Near boundaries
-        self.env.state[1] = 4.9
-        self.env.state[2] = 9.8
-        self.env.state[4] = 0.5  # Initial velocity
-        self.env.state[5] = 0.5
-        self.env.state[6] = 0.2
+        # Use BodyState properties for consistent state access
+        self.env.state.r = np.array([4.9, 4.9, 9.8])  # Near boundaries (x, y), high altitude (z)
+        self.env.state.v = np.array([0.5, 0.5, 0.2])  # Initial velocity (vx, vy, vz)
 
         super().initialize()
         print(f"Creating bouncing video: {self.video_name}")

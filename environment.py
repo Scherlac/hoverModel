@@ -1,10 +1,18 @@
 import numpy as np
 from physics import PhysicsEngine, HovercraftPhysics
 from visualization import Visualizer, Open3DVisualizer, NullVisualizer
+from state import BodyState
 
 class HovercraftEnv:
     """
     Composable hovercraft environment using dependency injection.
+
+    State vector format (8 elements):
+    [x, y, z, theta, vx, vy, vz, omega_z]
+    - x, y, z: position coordinates
+    - theta: orientation angle (radians)
+    - vx, vy, vz: velocity components
+    - omega_z: angular velocity around z-axis
 
     High cohesion: Single responsibility - orchestrate physics and visualization
     Low coupling: Depends on abstractions, not concrete implementations
@@ -30,8 +38,8 @@ class HovercraftEnv:
         self.physics = physics_engine or HovercraftPhysics(self.config)
         self.visualizer = visualizer
 
-        # Initialize state
-        self.state = np.array([0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        # Initialize state - environment owns the state
+        self.state = BodyState()
 
         # Lazy initialization of visualizer
         if self.visualizer is None:
@@ -64,7 +72,7 @@ class HovercraftEnv:
         else:
             return NullVisualizer(self.physics.get_bounds())
 
-    def step(self, action: np.ndarray) -> np.ndarray:
+    def step(self, action: np.ndarray) -> BodyState:
         """
         Advance environment by one time step.
 
@@ -72,10 +80,10 @@ class HovercraftEnv:
             action: [forward_force, rotation_torque]
 
         Returns:
-            next_state: Updated environment state
+            next_state: Updated BodyState object
         """
         self.state = self.physics.step(self.state, action, self.dt)
-        self.visualizer.update(self.state)
+        self.visualizer.update(np.array(self.state))
         return self.state
 
     def render(self):
@@ -86,33 +94,52 @@ class HovercraftEnv:
         """Clean up resources."""
         self.visualizer.close()
 
-    def reset(self) -> np.ndarray:
+    def reset(self) -> BodyState:
         """Reset environment to initial state."""
-        self.state = np.array([0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        self.visualizer.update(self.state)
+        self.state.reset()
+        self.visualizer.update(np.array(self.state))
         return self.state
 
-    # Convenience properties for state access
+    # Convenience properties for state access - delegate to BodyState
     @property
     def position(self) -> np.ndarray:
         """Get current position [x, y, z]."""
-        return self.state[:3]
+        return self.state.position
 
     @property
     def orientation(self) -> float:
         """Get current orientation theta."""
-        return self.state[3]
+        return self.state.orientation
 
     @property
     def velocity(self) -> np.ndarray:
         """Get current velocity [vx, vy, vz]."""
-        return self.state[4:7]
+        return self.state.velocity
 
     @property
     def angular_velocity(self) -> float:
         """Get current angular velocity omega_z."""
-        return self.state[7]
+        return self.state.angular_velocity
 
-    def capture_frame(self, filename: str):
+    def save_state(self, filepath: str) -> None:
+        """Save current state to file."""
+        self.state.save(filepath)
+
+    def load_state(self, filepath: str) -> BodyState:
+        """Load state from file."""
+        self.state = BodyState.load(filepath)
+        self.visualizer.update(np.array(self.state))
+        return self.state
+
+    def get_state_dict(self) -> dict:
+        """Get current state as dictionary."""
+        return self.state.to_dict()
+
+    def set_state_dict(self, state_dict: dict) -> None:
+        """Set state from dictionary."""
+        self.state = BodyState.from_dict(state_dict)
+        self.visualizer.update(np.array(self.state))
+
+    def capture_frame(self, filename: str) -> None:
         """Capture current visualization frame."""
         self.visualizer.capture_frame(filename)
