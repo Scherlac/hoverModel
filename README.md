@@ -1,41 +1,46 @@
 # Hovercraft Simulation
 
-A simple reinforcement learning environment simulation for a hovercraft using Open3D for visualization.
+A simple reinforcement learning environment simulation for a hovercraft using Open3D for 3D visualization.
 
 ## Current Status
 
-✅ **Implemented Features:**
+✅ **Fully Implemented and Working:**
 - Complete hovercraft physics simulation with Gaussian forces
 - Rectangular fence boundary with bouncing mechanics
 - Mass-based Newtonian physics (F=ma, torque responses)
 - Friction proportional to elevation
 - Controlled forward thrust and rotational torque
+- 3D visualization with Open3D
 - Test suite demonstrating all physics behaviors
 
-⚠️ **Known Issues:**
-- Open3D visualization not available for Python 3.13 (requires Python ≤3.12)
-- Physics simulation runs correctly without visualization
+⚠️ **Requirements:**
+- Python >= 3.12 (for Open3D compatibility)
+- Open3D installed via `pip install -e .`
 
 ## Installation
 
 This project uses modern Python packaging with `pyproject.toml`.
 
 ### Prerequisites
-- Python >= 3.13 (physics simulation works)
-- Python <= 3.12 (required for Open3D visualization)
+- Python >= 3.12
 
 ### Install Dependencies
 ```bash
 pip install -e .
 ```
 
-This installs numpy for the physics simulation.
-
-**Note:** Open3D is not included due to Python 3.13 compatibility. Visualization will fail until Open3D supports Python 3.13.
+This installs numpy and Open3D for the physics simulation and 3D visualization.
 
 ## Usage
 
-### Testing Physics (Works Now)
+Run the simulation with 3D visualization:
+```bash
+python main.py
+```
+
+This will open an Open3D 3D visualization window showing the hovercraft moving within the fenced training area.
+
+### Testing Physics
 Run the demonstration tests to verify physics:
 ```bash
 python test_demo.py
@@ -47,21 +52,13 @@ This runs tests for:
 - Rotational control
 - Combined physics simulation
 
-### Visualization (Future)
-Once Open3D supports Python 3.13:
-```bash
-python main.py
-```
-
-This will open an Open3D visualization window showing the hovercraft moving within the fenced training area.
-
 ### Creating Demo Video
 Run the video demonstration (requires matplotlib and ffmpeg):
 ```bash
 python video_demo.py
 ```
 
-This creates `hovercraft_demo.mkv` showing the hovercraft movement and height changes over time.
+This creates `hovercraft_demo.mkv` or `hovercraft_demo.gif` showing the hovercraft movement and height changes over time.
 ```
 
 This will open an Open3D visualization window showing the hovercraft moving within the fenced training area.
@@ -69,15 +66,15 @@ This will open an Open3D visualization window showing the hovercraft moving with
 ## Future Steps
 
 ### Immediate (High Priority)
-1. **Resolve Visualization Compatibility**
-   - Monitor Open3D releases for Python 3.13 support
-   - OR implement alternative 3D visualization (e.g., PyVista, VTK, or WebGL-based)
-   - OR downgrade to Python 3.12 for full functionality
-
-2. **Add Reinforcement Learning Interface**
+1. **Add Reinforcement Learning Interface**
    - Implement Gymnasium-compatible environment
    - Add reward functions for RL training
    - Define observation and action spaces
+
+2. **Enhance Visualization**
+   - Add hovercraft orientation arrows
+   - Improve 3D rendering performance
+   - Add camera controls
 
 ### Medium Term
 3. **Enhanced Physics**

@@ -58,6 +58,9 @@ class HovercraftEnv:
             self.hovercraft.paint_uniform_color([0, 0, 1])
             self.vis.add_geometry(self.hovercraft)
 
+            # Store original vertices for resetting
+            self.hovercraft_original_vertices = np.asarray(self.hovercraft.vertices).copy()
+
             # Ground
             ground = o3d.geometry.TriangleMesh.create_box(width=10, height=10, depth=0.1)
             ground.translate([-5, -5, -0.1])
@@ -138,13 +141,13 @@ class HovercraftEnv:
         if not self.viz:
             return
         x, y, z, theta, _, _, _, _ = self.state
-        # Reset transform
-        self.hovercraft.transform = np.eye(4)
-        # Rotate
-        R = self.o3d.geometry.get_rotation_matrix_from_axis_angle([0, 0, theta])
-        self.hovercraft.rotate(R, center=(0, 0, 0))
+        # Reset vertices to original
+        self.hovercraft.vertices = self.o3d.utility.Vector3dVector(self.hovercraft_original_vertices)
         # Translate
-        self.hovercraft.translate([x, y, z])
+        self.hovercraft.translate([x, y, z], relative=False)
+        # Rotate around center
+        R = self.o3d.geometry.get_rotation_matrix_from_axis_angle([0, 0, theta])
+        self.hovercraft.rotate(R, center=[x, y, z])
         self.vis.update_geometry(self.hovercraft)
         self.vis.poll_events()
         self.vis.update_renderer()
