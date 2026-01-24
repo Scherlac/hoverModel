@@ -1,9 +1,10 @@
-import open3d as o3d
 import numpy as np
 import time
 
+# open3d imported conditionally
+
 class HovercraftEnv:
-    def __init__(self):
+    def __init__(self, viz=True):
         # Constants
         self.mass = 1.0  # kg
         self.I = 0.1  # moment of inertia
@@ -26,38 +27,42 @@ class HovercraftEnv:
         self.rot_std = 0.5
         self.friction_k = 0.1  # friction proportional to z
 
-        # Visualization
-        self.vis = o3d.visualization.Visualizer()
-        self.vis.create_window()
+        self.viz = viz
+        if self.viz:
+            import open3d as o3d
+            self.o3d = o3d
+            # Visualization
+            self.vis = o3d.visualization.Visualizer()
+            self.vis.create_window()
 
-        # Fence: rectangle
-        self.fence_lines = []
-        points = [
-            [self.x_min, self.y_min, 0],
-            [self.x_max, self.y_min, 0],
-            [self.x_max, self.y_max, 0],
-            [self.x_min, self.y_max, 0],
-            [self.x_min, self.y_min, 0]  # close
-        ]
-        lines = [[i, i+1] for i in range(len(points)-1)]
-        colors = [[1, 0, 0] for _ in lines]
-        line_set = o3d.geometry.LineSet()
-        line_set.points = o3d.utility.Vector3dVector(points)
-        line_set.lines = o3d.utility.Vector2iVector(lines)
-        line_set.colors = o3d.utility.Vector3dVector(colors)
-        self.vis.add_geometry(line_set)
+            # Fence: rectangle
+            self.fence_lines = []
+            points = [
+                [self.x_min, self.y_min, 0],
+                [self.x_max, self.y_min, 0],
+                [self.x_max, self.y_max, 0],
+                [self.x_min, self.y_max, 0],
+                [self.x_min, self.y_min, 0]  # close
+            ]
+            lines = [[i, i+1] for i in range(len(points)-1)]
+            colors = [[1, 0, 0] for _ in lines]
+            line_set = o3d.geometry.LineSet()
+            line_set.points = o3d.utility.Vector3dVector(points)
+            line_set.lines = o3d.utility.Vector2iVector(lines)
+            line_set.colors = o3d.utility.Vector3dVector(colors)
+            self.vis.add_geometry(line_set)
 
-        # Hovercraft: sphere for rounder shape
-        self.hovercraft = o3d.geometry.TriangleMesh.create_sphere(radius=0.3)
-        self.hovercraft.compute_vertex_normals()
-        self.hovercraft.paint_uniform_color([0, 0, 1])
-        self.vis.add_geometry(self.hovercraft)
+            # Hovercraft: sphere for rounder shape
+            self.hovercraft = o3d.geometry.TriangleMesh.create_sphere(radius=0.3)
+            self.hovercraft.compute_vertex_normals()
+            self.hovercraft.paint_uniform_color([0, 0, 1])
+            self.vis.add_geometry(self.hovercraft)
 
-        # Ground
-        ground = o3d.geometry.TriangleMesh.create_box(width=10, height=10, depth=0.1)
-        ground.translate([-5, -5, -0.1])
-        ground.paint_uniform_color([0.5, 0.5, 0.5])
-        self.vis.add_geometry(ground)
+            # Ground
+            ground = o3d.geometry.TriangleMesh.create_box(width=10, height=10, depth=0.1)
+            ground.translate([-5, -5, -0.1])
+            ground.paint_uniform_color([0.5, 0.5, 0.5])
+            self.vis.add_geometry(ground)
 
     def step(self, action):
         # action: [forward_force, rotation_torque]
@@ -130,11 +135,13 @@ class HovercraftEnv:
         self.update_vis()
 
     def update_vis(self):
+        if not self.viz:
+            return
         x, y, z, theta, _, _, _, _ = self.state
         # Reset transform
         self.hovercraft.transform = np.eye(4)
         # Rotate
-        R = o3d.geometry.get_rotation_matrix_from_axis_angle([0, 0, theta])
+        R = self.o3d.geometry.get_rotation_matrix_from_axis_angle([0, 0, theta])
         self.hovercraft.rotate(R, center=(0, 0, 0))
         # Translate
         self.hovercraft.translate([x, y, z])
@@ -143,11 +150,13 @@ class HovercraftEnv:
         self.vis.update_renderer()
 
     def render(self):
-        self.vis.poll_events()
-        self.vis.update_renderer()
+        if self.viz:
+            self.vis.poll_events()
+            self.vis.update_renderer()
 
     def close(self):
-        self.vis.destroy_window()
+        if self.viz:
+            self.vis.destroy_window()
 
 def main():
     env = HovercraftEnv()
