@@ -1,6 +1,6 @@
 import click
 from control_sources import ControlSourceFactory
-from demo_outputs import DemoRunner
+from demo_runner import DemoRunner
 
 # Create a global runner instance
 runner = DemoRunner()
@@ -124,7 +124,7 @@ def video_chaotic(output, steps):
     """Create chaotic boundary-bouncing video."""
     click.echo(f"🎬 Creating CHAOTIC video: {output} ({steps} steps)")
     control = ControlSourceFactory.create_chaotic()
-    runner.create_bouncing_video(control, output, steps=steps)
+    runner.create_video(control, output, steps=steps, bouncing=True)
 
 
 def run_all_tests():
