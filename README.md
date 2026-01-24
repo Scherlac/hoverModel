@@ -68,14 +68,19 @@ python demo.py chaotic            # Test boundary bouncing behavior
 ### Video Creation
 Create demonstration videos:
 ```bash
-python demo.py video sinusoid     # Create sinusoidal movement video
+python demo.py video hover        # Create hovering video
+python demo.py video linear       # Create linear movement video
+python demo.py video rotate       # Create rotational video
+python demo.py video sinusoid     # Create sinusoidal video
 python demo.py video chaotic      # Create boundary bouncing video
-python demo.py video linear --steps 100 --fps 30 --output my_demo.mp4
 ```
 
 ### Advanced Options
 ```bash
 python demo.py --help             # Show all available commands and options
+python demo.py hover --steps 100  # Custom number of steps
+python demo.py linear --force 1.5 # Custom force for linear movement
+python demo.py video linear --output my_demo.mp4 --fps 30 --steps 150
 ```
 
 **Options:**
@@ -94,25 +99,38 @@ This will open an Open3D 3D visualization window showing the hovercraft moving w
 **Note:** On Windows command line, GUI windows may not be visible. The visualization works correctly for video capture and in Python IDEs/Jupyter notebooks.
 
 ### Command Line Interface (CLI)
-The demo system features a comprehensive CLI for easy experimentation:
+The demo system features a comprehensive Click-based CLI for easy experimentation:
 
-**Available Control Types:**
+**Available Commands:**
 - `hover` - Hovering (zero control inputs)
 - `linear` - Constant forward thrust
 - `rotate` - Pure rotational movement
 - `sinusoid` - Combined sinusoidal motion
 - `chaotic` - High-amplitude boundary testing
 
+**Video Subcommands:**
+- `video hover` - Create hovering video
+- `video linear` - Create linear movement video
+- `video rotate` - Create rotational video
+- `video sinusoid` - Create sinusoidal video
+- `video chaotic` - Create boundary bouncing video
+
 **Common Commands:**
 ```bash
 # Run demonstrations
 python demo.py hover              # Quick hover test
-python demo.py linear --steps 100 # Extended linear test
+python demo.py linear --force 1.0 # Linear with custom force
+python demo.py chaotic --steps 100 # Extended chaotic test
 
 # Create videos
 python demo.py video sinusoid     # Standard video
 python demo.py video chaotic      # Boundary bouncing video
-python demo.py video linear --fps 30 --output custom.mp4
+python demo.py video linear --output custom.mp4 --fps 30
+
+# Get help
+python demo.py --help
+python demo.py video --help
+```
 
 # Get help
 python demo.py --help
