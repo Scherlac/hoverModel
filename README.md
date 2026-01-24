@@ -80,19 +80,18 @@ The codebase follows SOLID principles with a composable architecture:
 - **Low Coupling**: Components communicate through abstractions, not concrete implementations
 - **Testability**: Physics can be tested independently of visualization
 - **Extensibility**: Easy to add new physics models or visualization backends
+- **Performance**: Vectorized physics calculations using NumPy tensors
 - **Composition**: Components can be mixed and matched via dependency injection
 
-### Usage Examples
-```python
-# Default configuration
-env = HovercraftEnv()
+### Physics Implementation
+The physics engine uses **vectorized NumPy operations** for efficient computation:
 
-# Custom physics with null visualization (for testing)
-from physics import HovercraftPhysics
-from visualization import NullVisualizer
-physics = HovercraftPhysics({'mass': 2.0})
-env = HovercraftEnv(physics_engine=physics, visualizer=NullVisualizer({}))
-```
+- **Position/Velocity**: 3D vectors for spatial coordinates
+- **Forces**: Vector calculations for Newtonian mechanics
+- **Boundaries**: Vectorized collision detection and response
+- **Integration**: Efficient tensor operations for state updates
+
+This provides better performance and cleaner code compared to scalar operations.
 ```
 
 This will open an Open3D visualization window showing the hovercraft moving within the fenced training area.

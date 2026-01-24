@@ -20,7 +20,7 @@ class PhysicsEngine(ABC):
         pass
 
 class HovercraftPhysics(PhysicsEngine):
-    """Newtonian physics for hovercraft simulation."""
+    """Newtonian physics for hovercraft simulation using vector operations."""
 
     def __init__(self, config: dict):
         self.mass = config.get('mass', 1.0)
@@ -34,7 +34,22 @@ class HovercraftPhysics(PhysicsEngine):
         self.rot_std = config.get('rot_std', 0.5)
         self.friction_k = config.get('friction_k', 0.1)
 
-        # Bounds
+        # Bounds as vectors for efficient checking
+        self.bounds_min = np.array([
+            config.get('x_bounds', (-5, 5))[0],
+            config.get('y_bounds', (-5, 5))[0],
+            config.get('z_bounds', (0, 10))[0]
+        ])
+        self.bounds_max = np.array([
+            config.get('x_bounds', (-5, 5))[1],
+            config.get('y_bounds', (-5, 5))[1],
+            config.get('z_bounds', (0, 10))[1]
+        ])
+
+        # Pre-compute gravity vector
+        self.gravity_vector = np.array([0.0, 0.0, self.gravity])
+
+        # Store bounds in dict format for compatibility
         self.bounds = {
             'x': config.get('x_bounds', (-5, 5)),
             'y': config.get('y_bounds', (-5, 5)),
@@ -42,56 +57,61 @@ class HovercraftPhysics(PhysicsEngine):
         }
 
     def step(self, state: np.ndarray, action: np.ndarray, dt: float) -> np.ndarray:
-        """Apply Newtonian physics to compute next state."""
+        """Apply Newtonian physics to compute next state using vector operations."""
+        # Unpack state vector
+        position = state[:3]      # [x, y, z]
+        theta = state[3]          # orientation
+        velocity = state[4:7]     # [vx, vy, vz]
+        omega_z = state[7]        # angular velocity
+
+        # Unpack action
         forward_force, rotation_torque = action
-        x, y, z, theta, vx, vy, vz, omega_z = state
 
-        # Random forces
+        # Random forces (vectorized)
         F_lift = np.random.normal(self.lift_mean, self.lift_std)
-        T_rot = np.random.normal(self.rot_mean, self.rot_std)
+        T_rot = np.random.normal(self.rot_mean, self.rot_mean)
 
-        # Controlled forces
-        F_forward_x = forward_force * np.cos(theta)
-        F_forward_y = forward_force * np.sin(theta)
-        T_control = rotation_torque
+        # Controlled forces (vectorized)
+        # Forward force in direction of orientation
+        forward_direction = np.array([np.cos(theta), np.sin(theta), 0.0])
+        F_forward = forward_force * forward_direction
 
-        # Friction
-        F_friction_x = -self.friction_k * z * vx
-        F_friction_y = -self.friction_k * z * vy
-        F_friction_z = -self.friction_k * z * vz
+        # Friction force (proportional to height and velocity)
+        # F_friction = -k * z * v for each component
+        friction_coefficient = self.friction_k * position[2]  # z component
+        F_friction = -friction_coefficient * velocity
 
-        # Total forces
-        Fx = F_forward_x + F_friction_x
-        Fy = F_forward_y + F_friction_y
-        Fz = F_lift + self.mass * self.gravity + F_friction_z
-        Tz = T_rot + T_control
+        # Total force vector (3D)
+        F_total = F_forward + F_friction + np.array([0.0, 0.0, F_lift]) + self.mass * self.gravity_vector
 
-        # Accelerations
-        ax, ay, az = Fx / self.mass, Fy / self.mass, Fz / self.mass
-        alpha_z = Tz / self.I
+        # Torque (scalar for 2D rotation)
+        T_total = T_rot + rotation_torque
 
-        # Integrate velocities
-        vx += ax * dt
-        vy += ay * dt
-        vz += az * dt
-        omega_z += alpha_z * dt
+        # Accelerations (vectorized)
+        acceleration = F_total / self.mass
+        alpha_z = T_total / self.I
 
-        # Integrate positions
-        x += vx * dt
-        y += vy * dt
-        z += vz * dt
-        theta += omega_z * dt
+        # Integrate velocities (vectorized)
+        velocity_new = velocity + acceleration * dt
+        omega_z_new = omega_z + alpha_z * dt
 
-        # Boundary collisions (bounce)
-        (x_min, x_max), (y_min, y_max), (z_min, z_max) = self.bounds.values()
-        if x < x_min: x, vx = x_min, -vx
-        elif x > x_max: x, vx = x_max, -vx
-        if y < y_min: y, vy = y_min, -vy
-        elif y > y_max: y, vy = y_max, -vy
-        if z < z_min: z, vz = z_min, -vz
-        elif z > z_max: z, vz = z_max, -vz
+        # Integrate positions (vectorized)
+        position_new = position + velocity_new * dt
+        theta_new = theta + omega_z_new * dt
 
-        return np.array([x, y, z, theta, vx, vy, vz, omega_z])
+        # Boundary collisions (vectorized bounce)
+        # Check lower bounds
+        below_min = position_new < self.bounds_min
+        position_new = np.where(below_min, self.bounds_min, position_new)
+        velocity_new = np.where(below_min, -velocity_new, velocity_new)
+
+        # Check upper bounds
+        above_max = position_new > self.bounds_max
+        position_new = np.where(above_max, self.bounds_max, position_new)
+        velocity_new = np.where(above_max, -velocity_new, velocity_new)
+
+        # Reconstruct state vector
+        return np.concatenate([position_new, [theta_new], velocity_new, [omega_z_new]])
 
     def get_bounds(self) -> dict:
         return self.bounds
