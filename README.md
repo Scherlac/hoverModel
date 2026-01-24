@@ -48,6 +48,7 @@ This installs numpy, Open3D for the physics simulation and 3D visualization, and
 - `physics.py` - Physics engine with abstract `PhysicsEngine` base class
 - `visualization.py` - Visualization backends with abstract `Visualizer` base class
 - `environment.py` - Main environment orchestrating physics and visualization
+- `body.py` - Physical body representations with `Body` and `Hovercraft` classes
 - `state.py` - Clean vector-based state representation with `BodyState` class
 - `pyproject.toml` - Project configuration and dependencies
 - `README.md` - This documentation file
@@ -146,11 +147,18 @@ python demo.py --help
 The codebase follows SOLID principles with a highly composable, modular architecture:
 
 ### Components
+- **`body.py`**: Physical body representations
+  - `Body` - Abstract base class for physical bodies with mass, shape, and dynamics
+  - `Hovercraft` - Concrete hovercraft implementation with lifting force and control characteristics
+  - Clean separation of physical properties from state and physics calculations
 - **`state.py`**: State representation and management
   - `BodyState` - Clean vector-based state with r/v vectors and theta/omega scalars
   - Single source of truth for state format and operations
   - Provides semantic vector accessors and validation
-- **`control_sources.py`**: Control signal generators with abstract `ControlSource` base class
+- **`physics.py`**: Physics engine with abstract `PhysicsEngine` base class
+  - `NewtonianPhysics` - General Newtonian physics for any body type
+  - Multi-body physics support with interaction handling
+  - Vectorized calculations for performance
   - `HoveringControl` - Zero control signals for stability testing
   - `LinearMovementControl` - Constant forward thrust
   - `RotationalControl` - Pure rotational movement
@@ -172,8 +180,11 @@ The codebase follows SOLID principles with a highly composable, modular architec
 ### Design Benefits
 - **High Cohesion**: Each component has a single, well-defined responsibility
 - **Low Coupling**: Components communicate through abstractions, not concrete implementations
+- **Body-Physics Separation**: Physical properties separated from physics calculations
+- **Multi-Body Support**: Architecture supports multiple interacting bodies
+- **Extensibility**: Easy to add new body types (cars, drones, etc.) without changing physics
 - **Single State Representation**: `BodyState` class owns all state operations
-- **State Ownership**: Environment owns the state, physics operates on it
+- **State Ownership**: Environment owns bodies, physics operates on them
 - **Strategy Pattern**: Interchangeable control sources and output handlers
 - **Factory Pattern**: Clean object creation for control sources
 - **Composition over Inheritance**: Flexible combination of control and output strategies
@@ -183,14 +194,26 @@ The codebase follows SOLID principles with a highly composable, modular architec
 - **Modularity**: Clean separation between control generation and output handling
 
 ### Physics Implementation
-The physics engine uses **vectorized NumPy operations** for efficient computation:
+The physics engine uses **body-based Newtonian physics** with vectorized NumPy operations:
 
+**Body-Physics Separation:**
+- Bodies define their physical properties (mass, forces, bounds)
+- Physics engine handles numerical integration and constraints
+- Multi-layer physics: single-body dynamics + body-environment interactions
+
+**Vectorized Operations:**
 - **Position/Velocity**: 3D vectors for spatial coordinates
-- **Forces**: Vector calculations for Newtonian mechanics
+- **Forces**: Vector calculations for Newtonian mechanics (F = ma)
+- **Torques**: Angular dynamics (τ = Iα)
 - **Boundaries**: Vectorized collision detection and response
 - **Integration**: Efficient tensor operations for state updates
 
-This provides better performance and cleaner code compared to scalar operations.
+**Multi-Body Support:**
+- `step_multiple()` for simultaneous body updates
+- Potential for body-body interactions (future extension)
+- Environment manages body collections
+
+This provides better performance and cleaner code compared to scalar operations, with clear separation between "what a body is" and "how physics works".
 
 ### Modular Demo System
 The demonstration system uses composition to combine control sources with output handlers, accessible through both programmatic API and CLI:
@@ -229,7 +252,13 @@ This architecture allows testing any control strategy with any output format wit
 
 ### State Management System
 
-The `BodyState` class provides a clean, vector-based state representation:
+The `BodyState` class provides a clean, vector-based state representation associated with physical bodies:
+
+**State-Body Relationship:**
+- `Body` objects own their physical properties (mass, forces, shape)
+- `BodyState` represents the current kinematic state (position, velocity, orientation)
+- Environment manages collections of bodies and their states
+- Physics engine operates on bodies to produce new states
 
 **State Properties:**
 ```python
@@ -241,7 +270,8 @@ omega  # Angular velocity (scalar)
 
 **Key Features:**
 - **Vector Representation**: Natural mathematical objects (vectors, scalars) instead of flat arrays
-- **Physical Intuition**: State represents actual physical quantities
+- **Physical Intuition**: State represents actual kinematic quantities
+- **Body Association**: States are tied to specific body instances
 - **Encapsulation**: State operations are centralized in one class
 - **Validation**: Automatic validation of state values
 - **Persistence**: Load/save state to/from JSON files
@@ -250,46 +280,49 @@ omega  # Angular velocity (scalar)
 
 **Usage:**
 ```python
+from body import Hovercraft
 from state import BodyState
 import numpy as np
 
-# Create state with vectors
-state = BodyState(
-    r=np.array([0.0, 0.0, 1.0]),      # position vector
-    v=np.array([0.5, 0.0, 0.1]),      # velocity vector
-    theta=0.0,                         # orientation
-    omega=0.0                          # angular velocity
-)
+# Create a hovercraft body
+hovercraft = Hovercraft(mass=1.0, lift_force_mean=10.0)
 
-# Access components semantically
+# Access its state
+state = hovercraft.get_state()
 position = state.r      # [x, y, z]
 velocity = state.v      # [vx, vy, vz]
-orientation = state.theta
-angular_vel = state.omega
 
-# Save/load state
-state.save("checkpoint.json")
-state = BodyState.load("checkpoint.json")
+# Update state
+new_state = BodyState(r=np.array([1, 2, 3]), v=np.array([0.1, 0.2, 0.3]))
+hovercraft.set_state(new_state)
 ```
 
 ### Recent Architectural Improvements
 
+**Body-Physics Separation:**
+- **`Body` Class**: Abstract base class for physical bodies with mass, shape, and force calculations
+- **`Hovercraft` Class**: Concrete implementation with hovercraft-specific properties
+- **Physics Engine**: Now works with any `Body` object, not hovercraft-specific
+- **Multi-Body Support**: Architecture supports multiple interacting bodies
+- **Force Delegation**: Bodies define their own force calculations via `get_forces()`
+
 **State Representation Refactoring:**
-- **`BodyState` Class**: Replaced complex `HovercraftState` with clean vector-based representation
+- **`BodyState` Class**: Clean vector-based representation associated with bodies
 - **Vector Properties**: Natural mathematical objects (`r`, `v` vectors, `theta`, `omega` scalars)
-- **Physics Integration**: Updated physics engine to use vector properties instead of array slicing
+- **Physics Integration**: Physics engine uses body properties instead of hardcoded values
 - **Simplified Code**: Eliminated separate indexing for position/velocity components
 - **Maintained Compatibility**: `__array__()` method preserves backward compatibility
 
 **File-Level Separation:**
+- **`body.py`**: Physical body representations and properties
 - **`simulation_outputs.py`**: Pure output handling (logging, video generation)
 - **`demo_runner.py`**: Demo orchestration and configuration logic
-- Clear separation between "what to output" vs "how to configure demos"
+- Clear separation: "what to output" vs "how to configure demos"
 
 **Semantic Improvements:**
-- Renamed classes to better reflect their purpose (`DemoOutput` → `SimulationOutput`)
-- Bouncing behavior now handled as demo configuration, not separate output type
-- Removed unnecessary dependencies (Pillow) for cleaner codebase
+- Renamed classes for clarity (`DemoOutput` → `SimulationOutput`)
+- Bouncing behavior as demo configuration, not output type
+- Factory patterns for clean object creation
 
 **Benefits:**
 - Single Responsibility Principle: Each file has one clear purpose
@@ -297,6 +330,7 @@ state = BodyState.load("checkpoint.json")
 - Cleaner dependencies: Only essential packages included
 - Physical Intuition: State represents actual physical quantities
 - Simplified Physics: Vector operations instead of array manipulation
+- **Extensibility**: Easy to add new body types (cars, airplanes, etc.) without changing physics
 
 ### Usage Examples
 
@@ -318,26 +352,32 @@ python demo.py video chaotic      # Create dynamic bouncing video
 env = HovercraftEnv()
 
 # Custom physics with null visualization (for testing)
-from physics import HovercraftPhysics
+from physics import NewtonianPhysics
 from visualization import NullVisualizer
-physics = HovercraftPhysics({'mass': 2.0})
+physics = NewtonianPhysics({'mass': 2.0})
 env = HovercraftEnv(physics_engine=physics, visualizer=NullVisualizer({}))
+
+# Body-based configuration
+from body import Hovercraft
+hovercraft = Hovercraft(
+    mass=1.5,
+    lift_force_mean=12.0,
+    friction_coefficient=0.05
+)
+env = HovercraftEnv(bodies=[hovercraft])
 
 # State management with vector properties
 from state import BodyState
 import numpy as np
 
-# Create state with vectors
-state = BodyState(
-    r=np.array([0.0, 0.0, 1.0]),      # position vector
-    v=np.array([0.5, 0.0, 0.1]),      # velocity vector
-    theta=0.0,                         # orientation
-    omega=0.0                          # angular velocity
-)
-
-# Access components semantically
+# Access body state
+state = env.body.get_state()
 position = state.r      # [x, y, z]
 velocity = state.v      # [vx, vy, vz]
+
+# Update body state
+new_state = BodyState(r=np.array([1, 2, 3]), v=np.array([0.1, 0.2, 0.3]))
+env.body.set_state(new_state)
 
 # Modular demo system - combine any control source with any output
 from control_sources import ControlSourceFactory
@@ -356,14 +396,14 @@ chaotic = ControlSourceFactory.create_chaotic()
 runner.create_video(chaotic, "boundary_test.mp4", steps=300, bouncing=True)
 
 # Vector gravity (e.g., simulating wind effects)
-wind_physics = HovercraftPhysics({
+wind_physics = NewtonianPhysics({
     'gravity': [0.5, 0.0, -9.81],  # [x, y, z] gravity vector
     'bounds': [[-10, 10], [-10, 10], [0, 15]]  # [[x_min, x_max], [y_min, y_max], [z_min, z_max]]
 })
 env = HovercraftEnv(physics_engine=wind_physics)
 
 # Compact bounds configuration
-compact_physics = HovercraftPhysics({
+compact_physics = NewtonianPhysics({
     'bounds': [[-5, 5], [-5, 5], [0, 10]]  # Clean array format
 })
 ```

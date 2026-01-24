@@ -20,6 +20,7 @@ from simulation_outputs import (
 from environment import HovercraftEnv
 from visualization import NullVisualizer, Visualizer
 from control_sources import ControlSource
+from body import Hovercraft
 from state import BodyState
 
 

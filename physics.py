@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import numpy as np
 from state import BodyState
+from body import Body
+
 
 class PhysicsEngine(ABC):
     """Abstract base class for physics simulation."""
@@ -11,8 +13,8 @@ class PhysicsEngine(ABC):
         pass
 
     @abstractmethod
-    def step(self, state: BodyState, action: np.ndarray, dt: float) -> BodyState:
-        """Compute next state given current state and action."""
+    def step(self, body: Body, action: np.ndarray, dt: float) -> BodyState:
+        """Compute next state for a body given action and time step."""
         pass
 
     @abstractmethod
@@ -20,31 +22,19 @@ class PhysicsEngine(ABC):
         """Return environment bounds."""
         pass
 
-class HovercraftPhysics(PhysicsEngine):
-    """Newtonian physics for hovercraft simulation using vector operations.
 
-    State vector format (8 elements):
-    [x, y, z, theta, vx, vy, vz, omega_z]
-    - x, y, z: position coordinates
-    - theta: orientation angle (radians)
-    - vx, vy, vz: velocity components
-    - omega_z: angular velocity around z-axis
+class NewtonianPhysics(PhysicsEngine):
+    """General Newtonian physics engine for body simulation.
+
+    Works with any Body object that implements get_forces() method.
+    Handles multi-body interactions and environmental effects.
     """
 
     def __init__(self, config: dict):
-        self.mass = config.get('mass', 1.0)
-        self.I = config.get('momentum', 0.1)
-
-        # Gravity vector (3D) - allows for non-vertical gravity or wind effects
+        """Initialize Newtonian physics engine."""
+        # Global environment properties
         gravity_config = config.get('gravity', [0.0, 0.0, -9.81])
         self.gravity_vector = np.array(gravity_config)
-
-        # Force parameters (scalars for now, could be extended to vectors)
-        self.lift_mean = config.get('lift_mean', 10.0)
-        self.lift_std = config.get('lift_std', 1.0)
-        self.rot_mean = config.get('rot_mean', 0.1)
-        self.rot_std = config.get('rot_std', 0.5)
-        self.friction_k = config.get('friction_k', 0.1)
 
         # Bounds configuration - simplified array format: [[x_min, x_max], [y_min, y_max], [z_min, z_max]]
         bounds_config = config.get('bounds', [[-5, 5], [-5, 5], [0, 10]])
@@ -59,58 +49,74 @@ class HovercraftPhysics(PhysicsEngine):
             'z': (self.bounds_min[2], self.bounds_max[2])
         }
 
-    def step(self, state: BodyState, action: np.ndarray, dt: float) -> BodyState:
-        """Apply Newtonian physics using vectorized operations.
+    def step(self, body: Body, action: np.ndarray, dt: float) -> BodyState:
+        """
+        Apply Newtonian physics to a body.
 
         Args:
-            state: Current BodyState object
-            action: Action vector [forward_force, rotation_torque]
+            body: Body object with physical properties and current state
+            action: Control inputs [forward_force, rotation_torque]
             dt: Time step duration
 
         Returns:
             next_state: Updated BodyState object
         """
-        # Extract state components using BodyState properties
-        r = state.r.copy()      # position vector [x, y, z]
-        theta = state.theta     # orientation angle
-        v = state.v.copy()      # velocity vector [vx, vy, vz]
-        omega = state.omega     # angular velocity
+        # Get current state
+        current_state = body.get_state()
 
-        # Unpack action
-        F_forward, T_torque = action
+        # Environment state for force calculations
+        environment_state = {
+            'gravity': self.gravity_vector,
+            'bounds': self.bounds,
+            'dt': dt
+        }
 
-        # Random forces
-        F_lift = np.random.normal(self.lift_mean, self.lift_std)
-        T_rot = np.random.normal(self.rot_mean, self.rot_mean)
+        # Get forces and torques from the body
+        total_force, total_torque = body.get_forces(action, environment_state)
 
-        # Forward force in direction of orientation
-        F_dir = F_forward * np.array([np.cos(theta), np.sin(theta), 0.0])
+        # Physics integration (vectorized)
+        acceleration = total_force / body.mass          # F = ma
+        alpha = total_torque / body.moment_of_inertia   # T = Iα
 
-        # Friction force (proportional to height)
-        F_friction = -self.friction_k * r[2] * v
+        # State integration
+        v_new = current_state.v + acceleration * dt
+        omega_new = current_state.omega + alpha * dt
 
-        # Total force and torque
-        F_total = F_dir + F_friction + np.array([0.0, 0.0, F_lift]) + self.mass * self.gravity_vector
-        T_total = T_rot + T_torque
+        r_new = current_state.r + v_new * dt
+        theta_new = current_state.theta + omega_new * dt
 
-        # Integrate (vectorized)
-        a = F_total / self.mass          # acceleration
-        alpha = T_total / self.I         # angular acceleration
-
-        v_new = v + a * dt               # velocity integration
-        omega_new = omega + alpha * dt   # angular velocity integration
-
-        r_new = r + v_new * dt           # position integration
-        theta_new = theta + omega_new * dt  # orientation integration
-
-        # Boundary collisions (vectorized bounce)
+        # Boundary collision handling (vectorized bounce)
         r_new = np.clip(r_new, self.bounds_min, self.bounds_max)
+        # Bounce velocity when hitting bounds
         v_new = np.where(r_new == self.bounds_min, -v_new, v_new)
         v_new = np.where(r_new == self.bounds_max, -v_new, v_new)
 
-        # Reconstruct state vector
-        new_state = np.concatenate([r_new, [theta_new], v_new, [omega_new]])
-        return BodyState(r=r_new, v=v_new, theta=theta_new, omega=omega_new)
+        # Create new state
+        new_state = BodyState(r=r_new, v=v_new, theta=theta_new, omega=omega_new)
+        return new_state
+
+    def step_multiple(self, bodies: list[Body], actions: list[np.ndarray], dt: float) -> list[BodyState]:
+        """
+        Step multiple bodies with potential interactions.
+
+        Args:
+            bodies: List of Body objects
+            actions: List of actions corresponding to each body
+            dt: Time step duration
+
+        Returns:
+            List of updated BodyState objects
+        """
+        new_states = []
+        for body, action in zip(bodies, actions):
+            new_state = self.step(body, action, dt)
+            new_states.append(new_state)
+        return new_states
 
     def get_bounds(self) -> dict:
+        """Return environment bounds."""
         return self.bounds
+
+
+# Backward compatibility alias
+HovercraftPhysics = NewtonianPhysics

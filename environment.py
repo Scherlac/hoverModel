@@ -1,35 +1,33 @@
 import numpy as np
 from physics import PhysicsEngine, HovercraftPhysics
 from visualization import Visualizer, Open3DVisualizer, NullVisualizer
+from body import Body, Hovercraft
 from state import BodyState
 
 class HovercraftEnv:
     """
-    Composable hovercraft environment using dependency injection.
+    Environment containing physical bodies with proper separation of concerns.
 
-    State vector format (8 elements):
-    [x, y, z, theta, vx, vy, vz, omega_z]
-    - x, y, z: position coordinates
-    - theta: orientation angle (radians)
-    - vx, vy, vz: velocity components
-    - omega_z: angular velocity around z-axis
-
-    High cohesion: Single responsibility - orchestrate physics and visualization
-    Low coupling: Depends on abstractions, not concrete implementations
-    Good composition: Built from interchangeable components
+    The environment:
+    - Contains Body objects (not just state)
+    - Manages body interactions and environmental conditions
+    - Delegates physics calculations to PhysicsEngine
+    - Handles visualization of bodies
     """
 
     def __init__(self,
                  physics_engine: PhysicsEngine = None,
                  visualizer: Visualizer = None,
-                 config: dict = None):
+                 config: dict = None,
+                 bodies: list[Body] = None):
         """
-        Initialize environment with injected dependencies.
+        Initialize environment with bodies and dependencies.
 
         Args:
             physics_engine: Physics simulation component
             visualizer: Visualization component
             config: Environment configuration
+            bodies: List of bodies in the environment (default: single hovercraft)
         """
         self.config = config or self._default_config()
         self.dt = self.config.get('dt', 0.01)
@@ -38,8 +36,21 @@ class HovercraftEnv:
         self.physics = physics_engine or HovercraftPhysics(self.config)
         self.visualizer = visualizer
 
-        # Initialize state - environment owns the state
-        self.state = BodyState()
+        # Initialize bodies
+        if bodies is None:
+            # Default: single hovercraft
+            hovercraft_config = {
+                'mass': self.config.get('mass', 1.0),
+                'moment_of_inertia': self.config.get('momentum', 0.1),
+                'lift_force_mean': self.config.get('lift_mean', 10.0),
+                'lift_force_std': self.config.get('lift_std', 1.0),
+                'rotational_noise_mean': self.config.get('rot_mean', 0.1),
+                'rotational_noise_std': self.config.get('rot_std', 0.5),
+                'friction_coefficient': self.config.get('friction_k', 0.1)
+            }
+            self.bodies = [Hovercraft(**hovercraft_config)]
+        else:
+            self.bodies = bodies
 
         # Lazy initialization of visualizer
         if self.visualizer is None:
@@ -76,15 +87,50 @@ class HovercraftEnv:
         """
         Advance environment by one time step.
 
+        For single-body environments (backward compatibility), returns the body state.
+        For multi-body environments, use step_multiple().
+
         Args:
-            action: [forward_force, rotation_torque]
+            action: [forward_force, rotation_torque] for the primary body
 
         Returns:
-            next_state: Updated BodyState object
+            next_state: Updated BodyState of the primary body
         """
-        self.state = self.physics.step(self.state, action, self.dt)
-        self.visualizer.update(np.array(self.state))
-        return self.state
+        if len(self.bodies) == 1:
+            # Single body case (backward compatibility)
+            new_state = self.physics.step(self.bodies[0], action, self.dt)
+            self.bodies[0].set_state(new_state)
+            self.visualizer.update(np.array(new_state))
+            return new_state
+        else:
+            # Multi-body case - delegate to step_multiple
+            return self.step_multiple([action])[0]
+
+    def step_multiple(self, actions: list[np.ndarray]) -> list[BodyState]:
+        """
+        Advance multiple bodies by one time step.
+
+        Args:
+            actions: List of actions for each body
+
+        Returns:
+            List of updated BodyState objects for each body
+        """
+        if len(actions) != len(self.bodies):
+            raise ValueError(f"Number of actions ({len(actions)}) must match number of bodies ({len(self.bodies)})")
+
+        # Step all bodies
+        new_states = self.physics.step_multiple(self.bodies, actions, self.dt)
+
+        # Update body states
+        for body, new_state in zip(self.bodies, new_states):
+            body.set_state(new_state)
+
+        # Update visualization (for now, just use first body state for compatibility)
+        if new_states:
+            self.visualizer.update(np.array(new_states[0]))
+
+        return new_states
 
     def render(self):
         """Render current state."""
@@ -96,30 +142,50 @@ class HovercraftEnv:
 
     def reset(self) -> BodyState:
         """Reset environment to initial state."""
-        self.state.reset()
-        self.visualizer.update(np.array(self.state))
-        return self.state
+        for body in self.bodies:
+            body.reset()
+        # Update visualization with primary body state
+        if self.bodies:
+            self.visualizer.update(np.array(self.bodies[0].get_state()))
+        return self.bodies[0].get_state() if self.bodies else BodyState()
 
-    # Convenience properties for state access - delegate to BodyState
+    # Convenience properties for primary body access (backward compatibility)
+    @property
+    def state(self) -> BodyState:
+        """Get primary body state (for backward compatibility)."""
+        return self.bodies[0].get_state() if self.bodies else BodyState()
+
+    @state.setter
+    def state(self, new_state: BodyState) -> None:
+        """Set primary body state (for backward compatibility)."""
+        if self.bodies:
+            self.bodies[0].set_state(new_state)
+
+    @property
+    def body(self) -> Body:
+        """Get primary body."""
+        return self.bodies[0] if self.bodies else None
+
+    # Convenience properties for state access - delegate to primary body
     @property
     def position(self) -> np.ndarray:
         """Get current position [x, y, z]."""
-        return self.state.position
+        return self.state.r
 
     @property
     def orientation(self) -> float:
         """Get current orientation theta."""
-        return self.state.orientation
+        return self.state.theta
 
     @property
     def velocity(self) -> np.ndarray:
         """Get current velocity [vx, vy, vz]."""
-        return self.state.velocity
+        return self.state.v
 
     @property
     def angular_velocity(self) -> float:
         """Get current angular velocity omega_z."""
-        return self.state.angular_velocity
+        return self.state.omega
 
     def save_state(self, filepath: str) -> None:
         """Save current state to file."""
@@ -127,9 +193,11 @@ class HovercraftEnv:
 
     def load_state(self, filepath: str) -> BodyState:
         """Load state from file."""
-        self.state = BodyState.load(filepath)
-        self.visualizer.update(np.array(self.state))
-        return self.state
+        loaded_state = BodyState.load(filepath)
+        if self.bodies:
+            self.bodies[0].set_state(loaded_state)
+        self.visualizer.update(np.array(loaded_state))
+        return loaded_state
 
     def get_state_dict(self) -> dict:
         """Get current state as dictionary."""
@@ -137,8 +205,23 @@ class HovercraftEnv:
 
     def set_state_dict(self, state_dict: dict) -> None:
         """Set state from dictionary."""
-        self.state = BodyState.from_dict(state_dict)
-        self.visualizer.update(np.array(self.state))
+        new_state = BodyState.from_dict(state_dict)
+        if self.bodies:
+            self.bodies[0].set_state(new_state)
+        self.visualizer.update(np.array(new_state))
+
+    def add_body(self, body: Body) -> None:
+        """Add a body to the environment."""
+        self.bodies.append(body)
+
+    def remove_body(self, body: Body) -> None:
+        """Remove a body from the environment."""
+        if body in self.bodies:
+            self.bodies.remove(body)
+
+    def get_bodies(self) -> list[Body]:
+        """Get all bodies in the environment."""
+        return self.bodies.copy()
 
     def capture_frame(self, filename: str) -> None:
         """Capture current visualization frame."""
