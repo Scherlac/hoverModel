@@ -53,12 +53,12 @@ This runs tests for:
 - Combined physics simulation
 
 ### Creating Demo Video
-Run the video demonstration (requires matplotlib and ffmpeg):
+Run the video demonstration using Open3D screen capture:
 ```bash
 python video_demo.py
 ```
 
-This creates `hovercraft_demo.mkv` or `hovercraft_demo.gif` showing the hovercraft movement and height changes over time.
+This captures frames from the 3D Open3D visualization and creates `hovercraft_demo_open3d.mp4` showing the hovercraft movement in 3D space.
 ```
 
 This will open an Open3D visualization window showing the hovercraft moving within the fenced training area.

@@ -1,98 +1,78 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from main import HovercraftEnv
 import time
+import os
+from main import HovercraftEnv
 
-def create_demo_video():
-    """Create an MKV video demonstrating the hovercraft simulation."""
-    print("Creating demo video...")
+def create_demo_video_open3d():
+    """Create a video demo using Open3D screen capture."""
+    print("Creating demo video using Open3D screen capture...")
 
-    # Run simulation and collect data
-    env = HovercraftEnv(viz=False)
-    positions = []
-    orientations = []
+    # Create environment with visualization
+    env = HovercraftEnv(viz=True)
 
-    # Run for 500 steps with varying actions
-    for i in range(500):
+    # Set up camera view for good demo perspective
+    ctr = env.vis.get_view_control()
+    ctr.set_zoom(0.8)
+    ctr.set_front([0.5, 0.5, -0.7])  # Angled view
+    ctr.set_lookat([0, 0, 1])        # Look at center
+    ctr.set_up([0, 0, 1])            # Up direction
+
+    # Create frames directory
+    frames_dir = "frames"
+    if not os.path.exists(frames_dir):
+        os.makedirs(frames_dir)
+
+    # Run simulation and capture frames
+    frame_count = 0
+    for i in range(300):  # Shorter for demo
         # Vary actions over time
-        forward = 1.0 if i < 250 else -1.0
+        forward = 1.0 if i < 150 else -1.0
         rotation = 0.5 * np.sin(i * 0.1)
         action = [forward, rotation]
         env.step(action)
 
-        x, y, z, theta, _, _, _, _ = env.state
-        positions.append((x, y, z))
-        orientations.append(theta)
+        # Capture frame every few steps
+        if i % 3 == 0:  # Capture every 3rd frame for smoother video
+            try:
+                # Capture screen image directly to file
+                frame_path = f"{frames_dir}/frame_{frame_count:04d}.png"
+                env.vis.capture_screen_image(frame_path)
+                print(f"Captured frame {frame_count}")
+                frame_count += 1
+            except Exception as e:
+                print(f"Failed to capture frame {frame_count}: {e}")
 
-        if i % 100 == 0:
-            print(f"Simulating step {i}/500")
+        time.sleep(0.02)
 
     env.close()
 
-    # Create animation
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-    # Top-down view
-    ax1.set_xlim(-6, 6)
-    ax1.set_ylim(-6, 6)
-    ax1.set_title('Top-Down View')
-    ax1.set_xlabel('X position')
-    ax1.set_ylabel('Y position')
-    ax1.grid(True)
-
-    # Draw fence
-    fence_x = [-5, 5, 5, -5, -5]
-    fence_y = [-5, -5, 5, 5, -5]
-    ax1.plot(fence_x, fence_y, 'r-', linewidth=2, label='Fence')
-
-    # Hovercraft representation (triangle)
-    hovercraft_patch = ax1.scatter([], [], c='blue', s=100, marker='^', label='Hovercraft')
-
-    # Height plot
-    ax2.set_xlim(0, 500)
-    ax2.set_ylim(0, 12)
-    ax2.set_title('Height Over Time')
-    ax2.set_xlabel('Time step')
-    ax2.set_ylabel('Z position')
-    ax2.grid(True)
-
-    height_line, = ax2.plot([], [], 'g-', linewidth=2, label='Height')
-
-    ax1.legend()
-    ax2.legend()
-
-    def animate(frame):
-        # Update hovercraft position
-        x, y, z = positions[frame]
-        theta = orientations[frame]
-
-        # Rotate the triangle based on orientation
-        hovercraft_patch.set_offsets([(x, y)])
-
-        # Update height plot
-        height_line.set_data(range(frame+1), [pos[2] for pos in positions[:frame+1]])
-
-        return hovercraft_patch, height_line
-
-    # Create animation
-    anim = animation.FuncAnimation(fig, animate, frames=len(positions),
-                                   interval=50, blit=True, repeat=False)
-
-    # Save as video
-    # Note: Requires ffmpeg installed for video saving
+    # Create video from frames using ffmpeg (if available)
     try:
-        Writer = animation.writers['ffmpeg']
-        writer = Writer(fps=20, metadata=dict(artist='Hovercraft Sim'), bitrate=1800)
-        anim.save('hovercraft_demo.mkv', writer=writer)
-        print("Video saved as hovercraft_demo.mkv")
-    except (RuntimeError, KeyError):
-        print("FFmpeg not available. Saving as GIF instead...")
-        anim.save('hovercraft_demo.gif', writer='pillow', fps=20)
-        print("Animation saved as hovercraft_demo.gif")
+        import subprocess
+        output_file = "hovercraft_demo_open3d.mp4"
+        # Add scale filter to ensure even dimensions for H.264
+        cmd = [
+            "ffmpeg", "-y", "-framerate", "15", "-i", f"{frames_dir}/frame_%04d.png",
+            "-vf", "scale=1920:1060",  # Make height even (1061 -> 1060)
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "fast", output_file
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            print(f"Video saved as {output_file}")
 
-    plt.close(fig)
+            # Clean up frames
+            import shutil
+            shutil.rmtree(frames_dir)
+            print("Cleaned up temporary frames")
+        else:
+            print(f"FFmpeg failed: {result.stderr}")
+            print("Frames saved in 'frames/' directory for manual processing")
+
+    except (subprocess.CalledProcessError, FileNotFoundError, ImportError):
+        print("FFmpeg not available. Frames saved in 'frames/' directory.")
+        print("To create video manually: ffmpeg -framerate 15 -i frames/frame_%04d.png -vf scale=1920:1060 -c:v libx264 -pix_fmt yuv420p hovercraft_demo.mp4")
+
     print("Demo video creation completed.")
 
 if __name__ == "__main__":
-    create_demo_video()
+    create_demo_video_open3d()
