@@ -15,6 +15,7 @@ from simulation_outputs import (
     SimulationOutput,
     LoggingSimulationOutput,
     VideoSimulationOutput,
+    LiveVisualizationOutput,
     NullSimulationOutput
 )
 from environment import HovercraftEnv
@@ -42,6 +43,33 @@ class DemoRunner:
         output = LoggingSimulationOutput(env)
         output.run_simulation(control_source, steps)
         env.close()
+
+    def run_visualization(self, control_source: ControlSource, steps: int = 200) -> None:
+        """Run demo with live visualization."""
+        # Create environment with Open3D visualizer
+        bounds = self.physics_config.get('bounds', [[-5, 5], [-5, 5], [0, 10]])
+        try:
+            from visualization import Open3DVisualizer
+            # Convert bounds list to dict format expected by visualizer
+            bounds_dict = {
+                'x': (bounds[0][0], bounds[0][1]),
+                'y': (bounds[1][0], bounds[1][1]),
+                'z': (bounds[2][0], bounds[2][1])
+            }
+            visualizer = Open3DVisualizer(bounds_dict)
+        except (ImportError, Exception) as e:
+            print(f"Open3D visualizer not available ({e}), cannot run live visualization")
+            return
+
+        env = HovercraftEnv(visualizer=visualizer)
+        output = LiveVisualizationOutput(env)
+
+        try:
+            output.run_simulation(control_source, steps)
+        except KeyboardInterrupt:
+            print("Visualization interrupted by user")
+        finally:
+            env.close()
 
     def create_video(self, control_source: ControlSource, video_name: str,
                     steps: int = 200, fps: int = 25, bouncing: bool = False) -> None:

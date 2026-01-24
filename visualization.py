@@ -10,7 +10,7 @@ class Visualizer(ABC):
         pass
 
     @abstractmethod
-    def update(self, state: np.ndarray):
+    def update(self, state):
         """Update visualization with current state."""
         pass
 
@@ -89,9 +89,15 @@ class Open3DVisualizer(Visualizer):
         ctr.set_lookat([0, 0, 1])        # Look at center
         ctr.set_up([0, 0, 1])            # Up direction
 
-    def update(self, state: np.ndarray):
+    def update(self, state):
         """Update hovercraft position and orientation."""
-        x, y, z, theta, _, _, _, _ = state
+        # Convert state to array if it's a BodyState object
+        if hasattr(state, '__array__'):
+            state_array = np.array(state)
+        else:
+            state_array = state
+
+        x, y, z, theta, _, _, _, _ = state_array
 
         # Reset and transform hovercraft
         self.hovercraft.vertices = self.o3d.utility.Vector3dVector(self.hovercraft_original_vertices)

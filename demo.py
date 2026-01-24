@@ -58,11 +58,15 @@ def sinusoid(steps):
 
 @cli.command()
 @click.option('--steps', default=50, help='Number of simulation steps')
-def chaotic(steps):
+@click.option('--visualize', is_flag=True, help='Enable live 3D visualization')
+def chaotic(steps, visualize):
     """Test chaotic boundary-bouncing behavior."""
-    click.echo(f"🎯 Running CHAOTIC demo ({steps} steps)")
+    click.echo(f"🎯 Running CHAOTIC demo ({steps} steps){' with visualization' if visualize else ''}")
     control = ControlSourceFactory.create_chaotic()
-    runner.run_test(control, steps=steps)
+    if visualize:
+        runner.run_visualization(control, steps=steps)
+    else:
+        runner.run_test(control, steps=steps)
 
 
 @cli.group()

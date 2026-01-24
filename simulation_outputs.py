@@ -139,3 +139,31 @@ class VideoSimulationOutput(SimulationOutput):
             print(f"🧹 Cleaned up temporary frames directory")
         elif not success:
             print(f"📁 Frames saved in '{self.frames_dir}' directory for debugging")
+
+
+class LiveVisualizationOutput(SimulationOutput):
+    """Live visualization output with interactive Open3D display."""
+
+    def __init__(self, env: HovercraftEnv):
+        super().__init__(env)
+
+    def initialize(self) -> None:
+        print("🎮 Starting live visualization...")
+        print("Press 'q' or close the window to exit")
+
+    def process_step(self, step: int, control: Tuple[float, float]) -> None:
+        # Update visualization
+        self.env.visualizer.update(self.env.state)
+        self.env.visualizer.render()
+
+        # Small delay for smooth visualization
+        time.sleep(0.05)
+
+        # Check if window is still open
+        if hasattr(self.env.visualizer, 'vis'):
+            if not self.env.visualizer.vis.poll_events():
+                raise KeyboardInterrupt("Visualization window closed")
+
+    def finalize(self) -> None:
+        print("✅ Live visualization completed")
+        self.env.visualizer.close()
