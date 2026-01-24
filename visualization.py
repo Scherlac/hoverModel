@@ -40,7 +40,7 @@ class Open3DVisualizer(Visualizer):
             raise ImportError("Open3D required for 3D visualization")
 
         self.vis = o3d.visualization.Visualizer()
-        self.vis.create_window()
+        self.vis.create_window(window_name="Hovercraft Simulation", width=1024, height=768, visible=True)
 
         # Setup environment geometry
         self._setup_environment(bounds)
@@ -51,6 +51,9 @@ class Open3DVisualizer(Visualizer):
         self.hovercraft.paint_uniform_color([0, 0.5, 1])
         self.vis.add_geometry(self.hovercraft)
         self.hovercraft_original_vertices = np.asarray(self.hovercraft.vertices).copy()
+
+        # Set default camera view
+        self._setup_camera()
 
     def _setup_environment(self, bounds):
         """Setup static environment geometry."""
@@ -78,6 +81,14 @@ class Open3DVisualizer(Visualizer):
         ground.paint_uniform_color([0.5, 0.5, 0.5])
         self.vis.add_geometry(ground)
 
+    def _setup_camera(self):
+        """Setup default camera view."""
+        ctr = self.vis.get_view_control()
+        ctr.set_zoom(0.8)
+        ctr.set_front([0.5, 0.5, -0.7])  # Angled view
+        ctr.set_lookat([0, 0, 1])        # Look at center
+        ctr.set_up([0, 0, 1])            # Up direction
+
     def update(self, state: np.ndarray):
         """Update hovercraft position and orientation."""
         x, y, z, theta, _, _, _, _ = state
@@ -90,11 +101,16 @@ class Open3DVisualizer(Visualizer):
         self.hovercraft.rotate(R, center=[x, y, z])
 
         self.vis.update_geometry(self.hovercraft)
+        self.vis.poll_events()
+        self.vis.update_renderer()
 
     def render(self):
         """Render current frame."""
         self.vis.poll_events()
         self.vis.update_renderer()
+        # Small delay to allow window to update
+        import time
+        time.sleep(0.01)
 
     def close(self):
         """Clean up Open3D resources."""
