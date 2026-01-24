@@ -16,6 +16,8 @@ A simple reinforcement learning environment simulation for a hovercraft using Op
 - **Modular demonstration system** with interchangeable control sources and output handlers
 - **Comprehensive CLI interface** for easy demonstrations and testing
 - **Separated architecture** with clear file-level separation between outputs and demos
+- **Clean state representation** with vector-based `BodyState` class (r/v vectors, theta/omega scalars)
+- **Vectorized physics** using natural mathematical objects instead of array slicing
 - All features tested and validated
 
 ⚠️ **Requirements:**
@@ -46,6 +48,7 @@ This installs numpy, Open3D for the physics simulation and 3D visualization, and
 - `physics.py` - Physics engine with abstract `PhysicsEngine` base class
 - `visualization.py` - Visualization backends with abstract `Visualizer` base class
 - `environment.py` - Main environment orchestrating physics and visualization
+- `state.py` - Clean vector-based state representation with `BodyState` class
 - `pyproject.toml` - Project configuration and dependencies
 - `README.md` - This documentation file
 
@@ -144,9 +147,9 @@ The codebase follows SOLID principles with a highly composable, modular architec
 
 ### Components
 - **`state.py`**: State representation and management
-  - `HovercraftState` - Encapsulated state with load/save operations
+  - `BodyState` - Clean vector-based state with r/v vectors and theta/omega scalars
   - Single source of truth for state format and operations
-  - Provides semantic accessors and validation
+  - Provides semantic vector accessors and validation
 - **`control_sources.py`**: Control signal generators with abstract `ControlSource` base class
   - `HoveringControl` - Zero control signals for stability testing
   - `LinearMovementControl` - Constant forward thrust
@@ -169,7 +172,7 @@ The codebase follows SOLID principles with a highly composable, modular architec
 ### Design Benefits
 - **High Cohesion**: Each component has a single, well-defined responsibility
 - **Low Coupling**: Components communicate through abstractions, not concrete implementations
-- **Single State Representation**: `HovercraftState` class owns all state operations
+- **Single State Representation**: `BodyState` class owns all state operations
 - **State Ownership**: Environment owns the state, physics operates on it
 - **Strategy Pattern**: Interchangeable control sources and output handlers
 - **Factory Pattern**: Clean object creation for control sources
@@ -226,37 +229,57 @@ This architecture allows testing any control strategy with any output format wit
 
 ### State Management System
 
-The `HovercraftState` class provides a single, consistent state representation:
+The `BodyState` class provides a clean, vector-based state representation:
 
-**State Vector Format:**
+**State Properties:**
 ```python
-[x, y, z, theta, vx, vy, vz, omega_z]
+r      # 3D position vector [x, y, z]
+v      # 3D velocity vector [vx, vy, vz]
+theta  # Orientation angle (scalar)
+omega  # Angular velocity (scalar)
 ```
 
 **Key Features:**
+- **Vector Representation**: Natural mathematical objects (vectors, scalars) instead of flat arrays
+- **Physical Intuition**: State represents actual physical quantities
 - **Encapsulation**: State operations are centralized in one class
 - **Validation**: Automatic validation of state values
 - **Persistence**: Load/save state to/from JSON files
-- **Semantic Access**: Properties for position, velocity, orientation
+- **Backward Compatibility**: `__array__()` method for existing visualization code
 - **Type Safety**: Clear interfaces for state operations
 
 **Usage:**
 ```python
-from state import HovercraftState
+from state import BodyState
+import numpy as np
 
-# Create default state
-state = HovercraftState()
+# Create state with vectors
+state = BodyState(
+    r=np.array([0.0, 0.0, 1.0]),      # position vector
+    v=np.array([0.5, 0.0, 0.1]),      # velocity vector
+    theta=0.0,                         # orientation
+    omega=0.0                          # angular velocity
+)
 
 # Access components semantically
-state.x = 1.0
-state.velocity = [0.5, 0.0, 0.1]
+position = state.r      # [x, y, z]
+velocity = state.v      # [vx, vy, vz]
+orientation = state.theta
+angular_vel = state.omega
 
 # Save/load state
 state.save("checkpoint.json")
-state = HovercraftState.load("checkpoint.json")
+state = BodyState.load("checkpoint.json")
 ```
 
 ### Recent Architectural Improvements
+
+**State Representation Refactoring:**
+- **`BodyState` Class**: Replaced complex `HovercraftState` with clean vector-based representation
+- **Vector Properties**: Natural mathematical objects (`r`, `v` vectors, `theta`, `omega` scalars)
+- **Physics Integration**: Updated physics engine to use vector properties instead of array slicing
+- **Simplified Code**: Eliminated separate indexing for position/velocity components
+- **Maintained Compatibility**: `__array__()` method preserves backward compatibility
 
 **File-Level Separation:**
 - **`simulation_outputs.py`**: Pure output handling (logging, video generation)
@@ -272,6 +295,8 @@ state = HovercraftState.load("checkpoint.json")
 - Single Responsibility Principle: Each file has one clear purpose
 - Better maintainability: Output logic separate from demo logic
 - Cleaner dependencies: Only essential packages included
+- Physical Intuition: State represents actual physical quantities
+- Simplified Physics: Vector operations instead of array manipulation
 
 ### Usage Examples
 
@@ -297,6 +322,22 @@ from physics import HovercraftPhysics
 from visualization import NullVisualizer
 physics = HovercraftPhysics({'mass': 2.0})
 env = HovercraftEnv(physics_engine=physics, visualizer=NullVisualizer({}))
+
+# State management with vector properties
+from state import BodyState
+import numpy as np
+
+# Create state with vectors
+state = BodyState(
+    r=np.array([0.0, 0.0, 1.0]),      # position vector
+    v=np.array([0.5, 0.0, 0.1]),      # velocity vector
+    theta=0.0,                         # orientation
+    omega=0.0                          # angular velocity
+)
+
+# Access components semantically
+position = state.r      # [x, y, z]
+velocity = state.v      # [vx, vy, vz]
 
 # Modular demo system - combine any control source with any output
 from control_sources import ControlSourceFactory
