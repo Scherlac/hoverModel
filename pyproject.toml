@@ -10,4 +10,4 @@ dependencies = [
 ]
 
 [tool.setuptools]
-py-modules = ["main", "test_demo", "video_demo"]
+py-modules = ["main", "demo"]

@@ -52,29 +52,14 @@ class HovercraftEnv:
             line_set.colors = o3d.utility.Vector3dVector(colors)
             self.vis.add_geometry(line_set)
 
-            # Hovercraft: more realistic shape - cylindrical body with skirt
-            # Main body (cylinder)
-            self.hovercraft_body = o3d.geometry.TriangleMesh.create_cylinder(radius=0.25, height=0.2)
-            self.hovercraft_body.compute_vertex_normals()
-            self.hovercraft_body.paint_uniform_color([0.2, 0.4, 0.8])  # Blue body
-            self.vis.add_geometry(self.hovercraft_body)
+            # Hovercraft: simple cylinder for clear visualization
+            self.hovercraft = o3d.geometry.TriangleMesh.create_cylinder(radius=0.3, height=0.2)
+            self.hovercraft.compute_vertex_normals()
+            self.hovercraft.paint_uniform_color([0, 0.5, 1])  # Bright blue
+            self.vis.add_geometry(self.hovercraft)
 
-            # Skirt (thinner cylinder underneath)
-            self.hovercraft_skirt = o3d.geometry.TriangleMesh.create_cylinder(radius=0.35, height=0.05)
-            self.hovercraft_skirt.compute_vertex_normals()
-            self.hovercraft_skirt.paint_uniform_color([0.1, 0.2, 0.4])  # Darker blue skirt
-            self.vis.add_geometry(self.hovercraft_skirt)
-
-            # Fan/propulsion indicator (small cylinder on top)
-            self.hovercraft_fan = o3d.geometry.TriangleMesh.create_cylinder(radius=0.1, height=0.1)
-            self.hovercraft_fan.compute_vertex_normals()
-            self.hovercraft_fan.paint_uniform_color([0.5, 0.5, 0.5])  # Gray fan
-            self.vis.add_geometry(self.hovercraft_fan)
-
-            # Store original vertices for all parts
-            self.body_original_vertices = np.asarray(self.hovercraft_body.vertices).copy()
-            self.skirt_original_vertices = np.asarray(self.hovercraft_skirt.vertices).copy()
-            self.fan_original_vertices = np.asarray(self.hovercraft_fan.vertices).copy()
+            # Store original vertices for resetting
+            self.hovercraft_original_vertices = np.asarray(self.hovercraft.vertices).copy()
 
             # Ground
             ground = o3d.geometry.TriangleMesh.create_box(width=10, height=10, depth=0.1)
@@ -156,30 +141,15 @@ class HovercraftEnv:
         if not self.viz:
             return
         x, y, z, theta, _, _, _, _ = self.state
-
-        # Update body position and rotation
-        self.hovercraft_body.vertices = self.o3d.utility.Vector3dVector(self.body_original_vertices)
-        self.hovercraft_body.translate([x, y, z + 0.1], relative=False)  # Body slightly above center
+        # Reset vertices to original
+        self.hovercraft.vertices = self.o3d.utility.Vector3dVector(self.hovercraft_original_vertices)
+        # Translate
+        self.hovercraft.translate([x, y, z], relative=False)
+        # Rotate around center
         R = self.o3d.geometry.get_rotation_matrix_from_axis_angle([0, 0, theta])
-        self.hovercraft_body.rotate(R, center=[x, y, z + 0.1])
-
-        # Update skirt position and rotation (stays at bottom)
-        self.hovercraft_skirt.vertices = self.o3d.utility.Vector3dVector(self.skirt_original_vertices)
-        self.hovercraft_skirt.translate([x, y, z - 0.025], relative=False)  # Skirt at bottom
-        self.hovercraft_skirt.rotate(R, center=[x, y, z - 0.025])
-
-        # Update fan position and rotation (on top, spins faster)
-        self.hovercraft_fan.vertices = self.o3d.utility.Vector3dVector(self.fan_original_vertices)
-        self.hovercraft_fan.translate([x, y, z + 0.25], relative=False)  # Fan on top
-        # Fan spins independently (faster rotation)
-        fan_rotation = theta * 3  # Spin 3x faster than body
-        R_fan = self.o3d.geometry.get_rotation_matrix_from_axis_angle([0, 0, fan_rotation])
-        self.hovercraft_fan.rotate(R_fan, center=[x, y, z + 0.25])
-
+        self.hovercraft.rotate(R, center=[x, y, z])
         # Update visualization
-        self.vis.update_geometry(self.hovercraft_body)
-        self.vis.update_geometry(self.hovercraft_skirt)
-        self.vis.update_geometry(self.hovercraft_fan)
+        self.vis.update_geometry(self.hovercraft)
         self.vis.poll_events()
         self.vis.update_renderer()
 
@@ -191,14 +161,3 @@ class HovercraftEnv:
     def close(self):
         if self.viz:
             self.vis.destroy_window()
-
-def main():
-    env = HovercraftEnv()
-    for _ in range(1000):
-        action = np.random.uniform(-5, 5, 2)  # random actions
-        env.step(action)
-        time.sleep(0.01)
-    env.close()
-
-if __name__ == "__main__":
-    main()

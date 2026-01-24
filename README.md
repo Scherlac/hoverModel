@@ -36,8 +36,7 @@ This installs numpy and Open3D for the physics simulation and 3D visualization.
 ## Project Structure
 
 - `main.py` - Core hovercraft environment with physics simulation and Open3D visualization
-- `test_demo.py` - Console-based physics testing suite
-- `video_demo.py` - Open3D screen capture for video generation
+- `demo.py` - Combined testing and video generation functionality
 - `pyproject.toml` - Project configuration and dependencies
 - `README.md` - This documentation file
 
@@ -51,24 +50,20 @@ python main.py
 This will open an Open3D 3D visualization window showing the hovercraft moving within the fenced training area.
 
 ### Testing Physics
-Run the demonstration tests to verify physics:
+Run the physics tests:
 ```bash
-python test_demo.py
+python demo.py
 ```
 
-This runs tests for:
-- Hovering behavior with random forces
-- Forward movement and boundary bouncing
-- Rotational control
-- Combined physics simulation
+This runs tests for hovering, movement, and rotation behaviors.
 
 ### Creating Demo Video
-Run the video demonstration using Open3D screen capture:
+Create a demonstration video:
 ```bash
-python video_demo.py
+python demo.py video
 ```
 
-This captures frames from the 3D Open3D visualization and creates `hovercraft_demo_open3d.mp4` in the project directory, showing the hovercraft movement in 3D space.
+This captures frames from the 3D Open3D visualization and creates `hovercraft_demo.mp4` in the project directory.
 ```
 
 This will open an Open3D visualization window showing the hovercraft moving within the fenced training area.
