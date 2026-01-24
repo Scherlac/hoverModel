@@ -20,9 +20,11 @@ This document captures the software engineering principles, architectural decisi
 ### Single Responsibility Principle (SRP)
 Each class has one reason to change and one primary responsibility:
 
-- **`HovercraftEnv`**: Orchestrates physics and visualization only
-- **`BodyState`**: Encapsulates state representation and operations
-- **`HovercraftPhysics`**: Implements physics calculations
+- **`Body`**: Physical properties and force calculations
+- **`Hovercraft`**: Hovercraft-specific properties and behaviors
+- **`BodyState`**: Kinematic state representation and operations
+- **`HovercraftEnv`**: Orchestrates physics and visualization of bodies
+- **`NewtonianPhysics`**: Numerical physics integration for any body type
 - **`ControlSource` subclasses**: Generate specific control patterns
 - **`SimulationOutput` subclasses**: Handle specific output formats
 
@@ -59,11 +61,12 @@ High-level modules don't depend on low-level modules:
 ### Component Organization
 
 **Core Business Logic:**
-- `physics.py`: Physics simulation (innermost layer)
-- `state.py`: State representation (data structures)
+- `body.py`: Physical body definitions and properties (innermost layer)
+- `physics.py`: Physics simulation algorithms
+- `state.py`: State representation and data structures
 
 **Application Logic:**
-- `environment.py`: Orchestrates core components
+- `environment.py`: Orchestrates bodies and physics
 - `demo_runner.py`: Orchestrates demonstrations
 
 **Interface Adapters:**
@@ -76,12 +79,12 @@ High-level modules don't depend on low-level modules:
 
 ### Dependency Flow
 ```
-Demo Runner → Environment → Physics/State
+Demo Runner → Environment → Bodies + Physics + State
 Demo Runner → Outputs → Visualization
 Demo Runner → Control Sources → Environment
 ```
 
-All dependencies point inward toward the core business logic.
+All dependencies point inward toward the core business logic. Bodies define their own properties, physics operates on them, and the environment orchestrates their interactions.
 
 ## Design Patterns
 
@@ -178,9 +181,10 @@ env = HovercraftEnv(visualizer=visualizer)
 ## State Management
 
 ### Single Source of Truth
-- `BodyState` class owns all state representation
-- No duplicate state definitions across modules
-- Environment owns state, physics operates on it
+- `BodyState` class owns all kinematic state representation
+- States are associated with specific `Body` instances
+- Environment manages collections of bodies and their states
+- Physics engine operates on bodies to produce new states
 
 ### Vector-Based Representation
 ```python
@@ -193,15 +197,21 @@ class BodyState:
 ```
 
 **Benefits:**
-- Physical intuition: represents actual mathematical quantities
+- Physical intuition: represents actual kinematic quantities
 - Type safety: clear vector/scalar distinctions
 - Performance: vectorized NumPy operations
 - Maintainability: no array indexing magic numbers
 
+### Body-State Relationship
+- `Body` objects encapsulate physical properties (mass, forces, shape)
+- `BodyState` represents current kinematic state (position, velocity, orientation)
+- Clean separation: "what a body is" vs "current state of motion"
+- Environment manages body lifecycle and state updates
+
 ### Backward Compatibility
 - `__array__()` method maintains compatibility with existing visualization code
+- Environment provides delegation properties for legacy access
 - Gradual migration path for legacy code
-- No breaking changes to external APIs
 
 ## Performance Considerations
 
@@ -292,16 +302,26 @@ state = BodyState(
 
 ### Architectural Improvements Made
 
+**Body-Physics Separation (Latest):**
+- **`Body` Abstract Class**: Base class for physical bodies with mass, shape, and force calculations
+- **`Hovercraft` Concrete Class**: Specific body type with lifting force and control characteristics
+- **Physics Engine Refactoring**: `NewtonianPhysics` now works with any `Body` object
+- **Multi-Body Support**: Environment can contain multiple interacting bodies
+- **Force Delegation**: Bodies define their own `get_forces()` methods
+- **Clean Separation**: "What a body is" vs "How physics works"
+
 **State Representation Refactoring:**
-- Replaced complex `HovercraftState` with clean `BodyState`
-- Vector properties (`r`, `v`) instead of array indexing
-- Eliminated separate component indexing
-- Maintained backward compatibility
+- **`BodyState` Class**: Clean vector-based representation associated with bodies
+- **Vector Properties**: Natural mathematical objects (`r`, `v` vectors, `theta`, `omega` scalars)
+- **Physics Integration**: Physics engine uses body properties instead of hardcoded values
+- **Simplified Code**: Eliminated separate indexing for position/velocity components
+- **Maintained Compatibility**: `__array__()` method preserves backward compatibility
 
 **File-Level Separation:**
-- Split `demo_outputs.py` → `simulation_outputs.py` + `demo_runner.py`
+- **`body.py`**: Physical body representations and properties
+- **`simulation_outputs.py`**: Pure output handling (logging, video generation)
+- **`demo_runner.py`**: Demo orchestration and configuration logic
 - Clear separation: "what to output" vs "how to configure demos"
-- Removed unused dependencies (Pillow)
 
 **Semantic Improvements:**
 - Renamed classes for clarity (`DemoOutput` → `SimulationOutput`)
@@ -310,12 +330,33 @@ state = BodyState(
 
 ### Design Principles Applied
 
+**Single Responsibility Principle (SRP):**
+- `Body`: Physical properties and force calculations
+- `BodyState`: Kinematic state representation
+- `PhysicsEngine`: Numerical integration and constraints
+- `Environment`: Body management and orchestration
+
+**Open/Closed Principle (OCP):**
+- New body types can be added without changing physics engine
+- New control sources/outputs without changing core logic
+- Abstract base classes enable extension through implementation
+
+**Interface Segregation Principle (ISP):**
+- `Body.get_forces()`: Bodies define their own physics
+- `PhysicsEngine.step()`: Physics operates on body abstractions
+- Clean interfaces prevent coupling between layers
+
+**Dependency Inversion Principle (DIP):**
+- High-level environment depends on body/physics abstractions
+- Concrete implementations can be swapped without changing interface
+- Testable through dependency injection
+
 **YAGNI (You Aren't Gonna Need It):**
 - Simple interfaces over complex abstractions
 - Minimal viable architecture for current requirements
 
 **DRY (Don't Repeat Yourself):**
-- Single `BodyState` class instead of duplicate state logic
+- Single `Body` class instead of duplicate state logic
 - Factory patterns eliminate repetitive object creation
 - Abstract base classes reduce code duplication
 
