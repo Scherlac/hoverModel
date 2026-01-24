@@ -36,7 +36,12 @@ This installs numpy and Open3D for the physics simulation and 3D visualization.
 ## Project Structure
 
 - `main.py` - Core hovercraft environment with physics simulation and Open3D visualization
-- `demo.py` - Combined testing and video generation functionality
+- `demo.py` - Combined testing and video generation functionality using modular architecture
+- `control_sources.py` - Control signal generators for different movement patterns
+- `demo_outputs.py` - Output handlers for various demonstration modes
+- `physics.py` - Physics engine with abstract `PhysicsEngine` base class
+- `visualization.py` - Visualization backends with abstract `Visualizer` base class
+- `environment.py` - Main environment orchestrating physics and visualization
 - `pyproject.toml` - Project configuration and dependencies
 - `README.md` - This documentation file
 
@@ -65,23 +70,46 @@ Create a demonstration video:
 python demo.py video
 ```
 
+Create a boundary bouncing demonstration video:
+```bash
+python demo.py bounce
+```
+
+This video shows the hovercraft colliding with and bouncing off the training boundaries.
+
 ## Architecture
 
-The codebase follows SOLID principles with a composable architecture:
+The codebase follows SOLID principles with a highly composable, modular architecture:
 
 ### Components
+- **`control_sources.py`**: Control signal generators with abstract `ControlSource` base class
+  - `HoveringControl` - Zero control signals for stability testing
+  - `LinearMovementControl` - Constant forward thrust
+  - `RotationalControl` - Pure rotational movement
+  - `SinusoidalControl` - Combined sinusoidal motion
+  - `ChaoticControl` - Boundary testing with high-amplitude signals
+  - `ControlSourceFactory` - Factory pattern for creating control sources
+- **`demo_outputs.py`**: Output handlers with abstract `DemoOutput` base class
+  - `NullOutput` - Silent testing mode
+  - `LoggingOutput` - Console position reporting
+  - `VideoOutput` - MP4 video generation with Open3D visualization
+  - `BouncingVideoOutput` - Specialized boundary collision videos
+  - `DemoRunner` - Composition layer combining control sources with outputs
 - **`physics.py`**: Physics engine with abstract `PhysicsEngine` base class
-- **`visualization.py`**: Visualization backends with abstract `Visualizer` base class  
+- **`visualization.py`**: Visualization backends with abstract `Visualizer` base class
 - **`environment.py`**: Main environment orchestrating physics and visualization
-- **`demo.py`**: Demonstration and testing utilities
+- **`demo.py`**: Demonstration and testing utilities using the modular system
 
 ### Design Benefits
 - **High Cohesion**: Each component has a single, well-defined responsibility
 - **Low Coupling**: Components communicate through abstractions, not concrete implementations
-- **Testability**: Physics can be tested independently of visualization
-- **Extensibility**: Easy to add new physics models or visualization backends
+- **Strategy Pattern**: Interchangeable control sources and output handlers
+- **Factory Pattern**: Clean object creation for control sources
+- **Composition over Inheritance**: Flexible combination of control and output strategies
+- **Testability**: Physics, control, and output can be tested independently
+- **Extensibility**: Easy to add new movement patterns or output formats
 - **Performance**: Vectorized physics calculations using NumPy tensors
-- **Composition**: Components can be mixed and matched via dependency injection
+- **Modularity**: Clean separation between control generation and output handling
 
 ### Physics Implementation
 The physics engine uses **vectorized NumPy operations** for efficient computation:
@@ -93,6 +121,31 @@ The physics engine uses **vectorized NumPy operations** for efficient computatio
 
 This provides better performance and cleaner code compared to scalar operations.
 
+### Modular Demo System
+The demonstration system uses composition to combine control sources with output handlers:
+
+```python
+from control_sources import ControlSourceFactory
+from demo_outputs import DemoRunner
+
+# Create control source
+control = ControlSourceFactory.create_sinusoidal()
+
+# Create demo runner
+runner = DemoRunner()
+
+# Run physics test with logging
+runner.run_test(control, steps=50)
+
+# Create video demonstration
+runner.create_video(control, "demo.mp4", steps=200, fps=25)
+
+# Create boundary bouncing video
+runner.create_bouncing_video(control, "bounce.mp4", steps=300)
+```
+
+This architecture allows testing any control strategy with any output format without code duplication.
+
 ### Usage Examples
 ```python
 # Default configuration
@@ -103,6 +156,22 @@ from physics import HovercraftPhysics
 from visualization import NullVisualizer
 physics = HovercraftPhysics({'mass': 2.0})
 env = HovercraftEnv(physics_engine=physics, visualizer=NullVisualizer({}))
+
+# Modular demo system - combine any control source with any output
+from control_sources import ControlSourceFactory
+from demo_outputs import DemoRunner
+
+runner = DemoRunner()
+
+# Test different movement patterns
+hovering = ControlSourceFactory.create_hovering()
+runner.run_test(hovering, steps=50)
+
+linear = ControlSourceFactory.create_linear(forward_force=1.0)
+runner.run_test(linear, steps=50)
+
+chaotic = ControlSourceFactory.create_chaotic()
+runner.create_bouncing_video(chaotic, "boundary_test.mp4", steps=300)
 
 # Vector gravity (e.g., simulating wind effects)
 wind_physics = HovercraftPhysics({
