@@ -55,6 +55,17 @@ python main.py
 
 This will open an Open3D visualization window showing the hovercraft moving within the fenced training area.
 
+### Creating Demo Video
+Run the video demonstration (requires matplotlib and ffmpeg):
+```bash
+python video_demo.py
+```
+
+This creates `hovercraft_demo.mkv` showing the hovercraft movement and height changes over time.
+```
+
+This will open an Open3D visualization window showing the hovercraft moving within the fenced training area.
+
 ## Future Steps
 
 ### Immediate (High Priority)
