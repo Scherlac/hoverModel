@@ -15,6 +15,7 @@ A simple reinforcement learning environment simulation for a hovercraft using Op
 - Video generation from 3D visualization (MP4 format)
 - **Modular demonstration system** with interchangeable control sources and output handlers
 - **Comprehensive CLI interface** for easy demonstrations and testing
+- **Separated architecture** with clear file-level separation between outputs and demos
 - All features tested and validated
 
 ⚠️ **Requirements:**
@@ -33,14 +34,15 @@ This project uses modern Python packaging with `pyproject.toml`.
 pip install -e .
 ```
 
-This installs numpy and Open3D for the physics simulation and 3D visualization.
+This installs numpy, Open3D for the physics simulation and 3D visualization, and Click for the CLI interface.
 
 ## Project Structure
 
 - `main.py` - Core hovercraft environment with physics simulation and Open3D visualization
 - `demo.py` - Combined testing and video generation functionality using modular architecture
 - `control_sources.py` - Control signal generators for different movement patterns
-- `demo_outputs.py` - Output handlers for various demonstration modes
+- `simulation_outputs.py` - Output handlers for various demonstration modes (logging, video, etc.)
+- `demo_runner.py` - Demo orchestration and configuration logic
 - `physics.py` - Physics engine with abstract `PhysicsEngine` base class
 - `visualization.py` - Visualization backends with abstract `Visualizer` base class
 - `environment.py` - Main environment orchestrating physics and visualization
@@ -148,12 +150,13 @@ The codebase follows SOLID principles with a highly composable, modular architec
   - `SinusoidalControl` - Combined sinusoidal motion
   - `ChaoticControl` - Boundary testing with high-amplitude signals
   - `ControlSourceFactory` - Factory pattern for creating control sources
-- **`demo_outputs.py`**: Output handlers with abstract `DemoOutput` base class
-  - `NullOutput` - Silent testing mode
-  - `LoggingOutput` - Console position reporting
-  - `VideoOutput` - MP4 video generation with Open3D visualization
-  - `BouncingVideoOutput` - Specialized boundary collision videos
-  - `DemoRunner` - Composition layer combining control sources with outputs
+- **`simulation_outputs.py`**: Output handlers with abstract `SimulationOutput` base class
+  - `NullSimulationOutput` - Silent testing mode
+  - `LoggingSimulationOutput` - Console position reporting
+  - `VideoSimulationOutput` - MP4 video generation with Open3D visualization
+- **`demo_runner.py`**: Demo orchestration and configuration
+  - `DemoRunner` - Main demo orchestrator combining control sources with outputs
+  - `BouncingVideoDemo` - Specialized configuration for boundary collision videos
 - **`physics.py`**: Physics engine with abstract `PhysicsEngine` base class
 - **`visualization.py`**: Visualization backends with abstract `Visualizer` base class
 - **`environment.py`**: Main environment orchestrating physics and visualization
@@ -186,7 +189,7 @@ The demonstration system uses composition to combine control sources with output
 **Programmatic Usage:**
 ```python
 from control_sources import ControlSourceFactory
-from demo_outputs import DemoRunner
+from demo_runner import DemoRunner
 
 # Create control source
 control = ControlSourceFactory.create_sinusoidal()
@@ -200,8 +203,9 @@ runner.run_test(control, steps=50)
 # Create video demonstration
 runner.create_video(control, "demo.mp4", steps=200, fps=25)
 
-# Create boundary bouncing video
-runner.create_bouncing_video(control, "bounce.mp4", steps=300)
+# Create boundary bouncing video (uses bouncing=True parameter)
+chaotic_control = ControlSourceFactory.create_chaotic()
+runner.create_video(chaotic_control, "bounce.mp4", steps=300, bouncing=True)
 ```
 
 **CLI Usage:**
@@ -213,6 +217,23 @@ python demo.py video chaotic --steps 300 --output bounce.mp4
 ```
 
 This architecture allows testing any control strategy with any output format without code duplication.
+
+### Recent Architectural Improvements
+
+**File-Level Separation:**
+- **`simulation_outputs.py`**: Pure output handling (logging, video generation)
+- **`demo_runner.py`**: Demo orchestration and configuration logic
+- Clear separation between "what to output" vs "how to configure demos"
+
+**Semantic Improvements:**
+- Renamed classes to better reflect their purpose (`DemoOutput` → `SimulationOutput`)
+- Bouncing behavior now handled as demo configuration, not separate output type
+- Removed unnecessary dependencies (Pillow) for cleaner codebase
+
+**Benefits:**
+- Single Responsibility Principle: Each file has one clear purpose
+- Better maintainability: Output logic separate from demo logic
+- Cleaner dependencies: Only essential packages included
 
 ### Usage Examples
 
@@ -241,7 +262,7 @@ env = HovercraftEnv(physics_engine=physics, visualizer=NullVisualizer({}))
 
 # Modular demo system - combine any control source with any output
 from control_sources import ControlSourceFactory
-from demo_outputs import DemoRunner
+from demo_runner import DemoRunner
 
 runner = DemoRunner()
 
@@ -253,7 +274,7 @@ linear = ControlSourceFactory.create_linear(forward_force=1.0)
 runner.run_test(linear, steps=50)
 
 chaotic = ControlSourceFactory.create_chaotic()
-runner.create_bouncing_video(chaotic, "boundary_test.mp4", steps=300)
+runner.create_video(chaotic, "boundary_test.mp4", steps=300, bouncing=True)
 
 # Vector gravity (e.g., simulating wind effects)
 wind_physics = HovercraftPhysics({
@@ -299,7 +320,7 @@ compact_physics = HovercraftPhysics({
 
 ## Contributing
 
-The physics simulation and modular demonstration system are complete and tested. Contributions welcome for:
+The physics simulation and modular demonstration system are complete and tested. The codebase follows clean architecture principles with separated concerns. Contributions welcome for:
 - Additional control source implementations (new movement patterns)
 - Alternative visualization backends
 - Enhanced CLI features and commands
@@ -307,6 +328,11 @@ The physics simulation and modular demonstration system are complete and tested.
 - Additional physics features and environmental effects
 - Performance improvements and optimizations
 - Multi-agent scenarios and advanced features
+
+**Architecture Notes:**
+- Output handlers belong in `simulation_outputs.py`
+- Demo orchestration logic belongs in `demo_runner.py`
+- Keep file-level separation of concerns when adding new features
 
 ## License
 
