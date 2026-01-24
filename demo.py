@@ -1,165 +1,111 @@
 import click
 from control_sources import ControlSourceFactory
 from demo_runner import DemoRunner
+from typing import List, Dict, Any
+from simulation_outputs import LoggingSimulationOutput, LiveVisualizationOutput, VideoSimulationOutput
+from environment import HovercraftEnv
 
-# Create a global runner instance
 runner = DemoRunner()
-
 
 @click.group(invoke_without_command=True)
 @click.pass_context
 def cli(ctx):
-    """Hovercraft demonstration system with modular control sources and outputs.
-
-    Run physics tests and create videos of different hovercraft behaviors.
-    """
-    if ctx.invoked_subcommand is None:
-        # Default behavior: run all tests
-        run_all_tests()
-
+    if ctx.invoked_subcommand is None: run_all_tests()
 
 @cli.command()
-@click.option('--steps', default=50, help='Number of simulation steps')
-def hover(steps):
-    """Test hovering behavior (no control inputs)."""
-    click.echo(f"🧭 Running HOVER demo ({steps} steps)")
-    control = ControlSourceFactory.create_hovering()
-    runner.run_test(control, steps=steps)
+@click.option('--control', 'controls', multiple=True, required=True)
+@click.option('--output', 'outputs', multiple=True, required=True)
+@click.option('--start-x', default=0.0)
+@click.option('--start-y', default=0.0)
+@click.option('--start-z', default=1.0)
+def run(controls, outputs, start_x, start_y, start_z):
+    initial_pos = (start_x, start_y, start_z)
+    control_configs = [parse_spec(spec, 'control') for spec in controls]
+    output_configs = [parse_spec(spec, 'output') for spec in outputs]
+    
+    click.echo(f"🚀 Running {len(control_configs)} control(s), {len(output_configs)} output(s)")
+    
+    for config in control_configs:
+        control = create_control(config['type'], config['params'])
+        output_instances = [create_output(oc['type'], oc['params']) for oc in output_configs]
+        run_simulation(control, output_instances, config['steps'], initial_pos)
 
+def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
+    parts = spec.split(':')
+    config = {'type': parts[0], 'params': {}}
+    if spec_type == 'control': config['steps'] = 50
+    
+    for part in parts[1:]:
+        if '=' in part:
+            k, v = part.split('=', 1)
+            if spec_type == 'control' and k == 'steps':
+                config['steps'] = int(v)
+            else:
+                config['params'][k] = float(v) if spec_type == 'control' and k != 'steps' else v
+    return config
 
-@cli.command()
-@click.option('--force', default=0.8, help='Forward force magnitude')
-@click.option('--steps', default=50, help='Number of simulation steps')
-@click.option('--start-x', default=0.0, help='Initial x position')
-@click.option('--start-y', default=0.0, help='Initial y position') 
-@click.option('--start-z', default=1.0, help='Initial z position')
-def linear(force, steps, start_x, start_y, start_z):
-    """Test linear forward movement."""
-    click.echo(f"➡️  Running LINEAR demo (force={force}, {steps} steps)")
-    click.echo(f"   Starting position: ({start_x}, {start_y}, {start_z})")
-    control = ControlSourceFactory.create_linear(forward_force=force)
-    runner.run_test(control, steps=steps, initial_pos=(start_x, start_y, start_z))
+def create_control(control_type: str, params: Dict[str, Any]):
+    ct = control_type.lower()
+    if ct in ('hovering', 'hover'): return ControlSourceFactory.create_hovering()
+    elif ct == 'linear': return ControlSourceFactory.create_linear(params.get('force', 0.8))
+    elif ct in ('rotational', 'rotate'): return ControlSourceFactory.create_rotational(params.get('torque', 0.3))
+    elif ct in ('sinusoidal', 'sinusoid'): return ControlSourceFactory.create_sinusoidal()
+    elif ct == 'chaotic': return ControlSourceFactory.create_chaotic()
+    raise click.ClickException(f"Unknown control: {control_type}")
 
+def create_output(output_type: str, output_params: Dict[str, Any]):
+    ot = output_type.lower()
+    if ot in ('console', 'logging'): return LoggingSimulationOutput(runner.create_environment())
+    elif ot in ('live', 'visualization'): return LiveVisualizationOutput(_create_env())
+    elif ot == 'video': return VideoSimulationOutput(_create_env(), output_params.get('filename', 'demo.mp4'), int(output_params.get('fps', 25)))
+    raise click.ClickException(f"Unknown output: {output_type}")
 
-@cli.command()
-@click.option('--torque', default=0.3, help='Rotation torque magnitude')
-@click.option('--steps', default=50, help='Number of simulation steps')
-def rotate(torque, steps):
-    """Test rotational movement."""
-    click.echo(f"🔄 Running ROTATE demo (torque={torque}, {steps} steps)")
-    control = ControlSourceFactory.create_rotational(rotation_torque=torque)
-    runner.run_test(control, steps=steps)
+def _create_env():
+    bounds = runner.physics_config.get('bounds', [[-5, 5], [-5, 5], [0, 10]])
+    try:
+        from visualization import Open3DVisualizer
+        return HovercraftEnv(visualizer=Open3DVisualizer({'x': (bounds[0][0], bounds[0][1]), 'y': (bounds[1][0], bounds[1][1]), 'z': (bounds[2][0], bounds[2][1])}))
+    except:
+        from visualization import NullVisualizer
+        return HovercraftEnv(visualizer=NullVisualizer(bounds))
 
-
-@cli.command()
-@click.option('--steps', default=50, help='Number of simulation steps')
-def sinusoid(steps):
-    """Test combined sinusoidal movement."""
-    click.echo(f"🌊 Running SINUSOID demo ({steps} steps)")
-    control = ControlSourceFactory.create_sinusoidal()
-    runner.run_test(control, steps=steps)
-
-
-@cli.command()
-@click.option('--steps', default=50, help='Number of simulation steps')
-@click.option('--visualize', is_flag=True, help='Enable live 3D visualization')
-@click.option('--start-x', default=0.0, help='Initial x position')
-@click.option('--start-y', default=0.0, help='Initial y position') 
-@click.option('--start-z', default=1.0, help='Initial z position')
-def chaotic(steps, visualize, start_x, start_y, start_z):
-    """Test chaotic boundary-bouncing behavior."""
-    click.echo(f"🎯 Running CHAOTIC demo ({steps} steps){' with visualization' if visualize else ''}")
-    click.echo(f"   Starting position: ({start_x}, {start_y}, {start_z})")
-    control = ControlSourceFactory.create_chaotic()
-    if visualize:
-        runner.run_visualization(control, steps=steps, initial_pos=(start_x, start_y, start_z))
-    else:
-        runner.run_test(control, steps=steps, initial_pos=(start_x, start_y, start_z))
-
-
-@cli.group()
-def video():
-    """Create demonstration videos."""
-    pass
-
-
-@video.command('hover')
-@click.option('--output', default='hover_demo.mp4', help='Output video filename')
-@click.option('--steps', default=200, help='Number of simulation steps')
-@click.option('--fps', default=25, help='Video frame rate')
-def video_hover(output, steps, fps):
-    """Create hovering video."""
-    click.echo(f"🎬 Creating HOVER video: {output} ({steps} steps, {fps} fps)")
-    control = ControlSourceFactory.create_hovering()
-    runner.create_video(control, output, steps=steps, fps=fps)
-
-
-@video.command('linear')
-@click.option('--force', default=0.8, help='Forward force magnitude')
-@click.option('--output', default='linear_demo.mp4', help='Output video filename')
-@click.option('--steps', default=200, help='Number of simulation steps')
-@click.option('--fps', default=25, help='Video frame rate')
-def video_linear(force, output, steps, fps):
-    """Create linear movement video."""
-    click.echo(f"🎬 Creating LINEAR video: {output} (force={force}, {steps} steps, {fps} fps)")
-    control = ControlSourceFactory.create_linear(forward_force=force)
-    runner.create_video(control, output, steps=steps, fps=fps)
-
-
-@video.command('rotate')
-@click.option('--torque', default=0.3, help='Rotation torque magnitude')
-@click.option('--output', default='rotate_demo.mp4', help='Output video filename')
-@click.option('--steps', default=200, help='Number of simulation steps')
-@click.option('--fps', default=25, help='Video frame rate')
-def video_rotate(torque, output, steps, fps):
-    """Create rotational movement video."""
-    click.echo(f"🎬 Creating ROTATE video: {output} (torque={torque}, {steps} steps, {fps} fps)")
-    control = ControlSourceFactory.create_rotational(rotation_torque=torque)
-    runner.create_video(control, output, steps=steps, fps=fps)
-
-
-@video.command('sinusoid')
-@click.option('--output', default='sinusoid_demo.mp4', help='Output video filename')
-@click.option('--steps', default=200, help='Number of simulation steps')
-@click.option('--fps', default=25, help='Video frame rate')
-def video_sinusoid(output, steps, fps):
-    """Create sinusoidal movement video."""
-    click.echo(f"🎬 Creating SINUSOID video: {output} ({steps} steps, {fps} fps)")
-    control = ControlSourceFactory.create_sinusoidal()
-    runner.create_video(control, output, steps=steps, fps=fps)
-
-
-@video.command('chaotic')
-@click.option('--output', default='chaotic_demo.mp4', help='Output video filename')
-@click.option('--steps', default=300, help='Number of simulation steps')
-def video_chaotic(output, steps):
-    """Create chaotic boundary-bouncing video."""
-    click.echo(f"🎬 Creating CHAOTIC video: {output} ({steps} steps)")
-    control = ControlSourceFactory.create_chaotic()
-    runner.create_video(control, output, steps=steps, bouncing=True)
-
+def run_simulation(control, outputs: List, steps: int, initial_pos):
+    if not outputs: return
+    
+    main_env = next((o.env for o in outputs if isinstance(o, (LiveVisualizationOutput, VideoSimulationOutput))), outputs[0].env)
+    
+    if initial_pos:
+        import numpy as np
+        main_env.state.r = np.array(initial_pos)
+        main_env.state.v = np.zeros(3)
+        main_env.state.theta = main_env.state.omega = 0.0
+        main_env.state.clear_events()
+    
+    for output in outputs: output.initialize()
+    
+    for step in range(steps):
+        control_input = control.get_control(step)
+        main_env.step(control_input)
+        
+        for output in outputs:
+            if output.env is not main_env:
+                output.env.state.r = main_env.state.r.copy()
+                output.env.state.v = main_env.state.v.copy()
+                output.env.state.theta = main_env.state.theta
+                output.env.state.omega = main_env.state.omega
+                output.env.state.events = main_env.state.events.copy() if main_env.state.events else []
+        
+        for output in outputs: output.process_step(step, control_input)
+    
+    for output in outputs: 
+        output.finalize()
+        if hasattr(output.env, 'close'): output.env.close()
 
 def run_all_tests():
-    """Run all physics tests."""
-    click.echo("🧪 Running all physics tests...\n")
+    click.echo("🧪 Running tests...")
+    for name, control in [("hover", ControlSourceFactory.create_hovering()), ("linear", ControlSourceFactory.create_linear(0.8)), ("rotate", ControlSourceFactory.create_rotational(0.3))]:
+        click.echo(f"Testing {name}...")
+        runner.run_test(control, 50)
+    click.echo("✅ Done!")
 
-    # Test hovering
-    click.echo("Testing hovering...")
-    control = ControlSourceFactory.create_hovering()
-    runner.run_test(control, steps=50)
-
-    # Test movement
-    click.echo("\nTesting linear movement...")
-    control = ControlSourceFactory.create_linear(0.8)
-    runner.run_test(control, steps=50)
-
-    # Test rotation
-    click.echo("\nTesting rotation...")
-    control = ControlSourceFactory.create_rotational(0.3)
-    runner.run_test(control, steps=50)
-
-    click.echo("\n✅ All tests completed!")
-
-
-if __name__ == "__main__":
-    cli()
+if __name__ == "__main__": cli()
