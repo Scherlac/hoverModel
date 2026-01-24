@@ -30,11 +30,15 @@ def hover(steps):
 @cli.command()
 @click.option('--force', default=0.8, help='Forward force magnitude')
 @click.option('--steps', default=50, help='Number of simulation steps')
-def linear(force, steps):
+@click.option('--start-x', default=0.0, help='Initial x position')
+@click.option('--start-y', default=0.0, help='Initial y position') 
+@click.option('--start-z', default=1.0, help='Initial z position')
+def linear(force, steps, start_x, start_y, start_z):
     """Test linear forward movement."""
     click.echo(f"➡️  Running LINEAR demo (force={force}, {steps} steps)")
+    click.echo(f"   Starting position: ({start_x}, {start_y}, {start_z})")
     control = ControlSourceFactory.create_linear(forward_force=force)
-    runner.run_test(control, steps=steps)
+    runner.run_test(control, steps=steps, initial_pos=(start_x, start_y, start_z))
 
 
 @cli.command()
@@ -59,14 +63,18 @@ def sinusoid(steps):
 @cli.command()
 @click.option('--steps', default=50, help='Number of simulation steps')
 @click.option('--visualize', is_flag=True, help='Enable live 3D visualization')
-def chaotic(steps, visualize):
+@click.option('--start-x', default=0.0, help='Initial x position')
+@click.option('--start-y', default=0.0, help='Initial y position') 
+@click.option('--start-z', default=1.0, help='Initial z position')
+def chaotic(steps, visualize, start_x, start_y, start_z):
     """Test chaotic boundary-bouncing behavior."""
     click.echo(f"🎯 Running CHAOTIC demo ({steps} steps){' with visualization' if visualize else ''}")
+    click.echo(f"   Starting position: ({start_x}, {start_y}, {start_z})")
     control = ControlSourceFactory.create_chaotic()
     if visualize:
-        runner.run_visualization(control, steps=steps)
+        runner.run_visualization(control, steps=steps, initial_pos=(start_x, start_y, start_z))
     else:
-        runner.run_test(control, steps=steps)
+        runner.run_test(control, steps=steps, initial_pos=(start_x, start_y, start_z))
 
 
 @cli.group()

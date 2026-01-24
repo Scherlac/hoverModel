@@ -91,8 +91,8 @@ class ChaoticControl(ControlSource):
     """Generates chaotic movement for boundary testing."""
 
     def __init__(self,
-                 forward_amplitude: float = 5.0,
-                 rotation_amplitude: float = 1.2,
+                 forward_amplitude: float = 20.0,  # Increased for more aggressive movement
+                 rotation_amplitude: float = 5.0,  # Increased for more aggressive rotation
                  forward_freq: float = 0.12,
                  rotation_freq: float = 0.18):
         self.forward_amp = forward_amplitude

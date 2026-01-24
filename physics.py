@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import numpy as np
-from state import BodyState
+from state import BodyState, PhysicsEvent
 from body import Body
 
 
@@ -86,13 +86,27 @@ class NewtonianPhysics(PhysicsEngine):
         theta_new = current_state.theta + omega_new * dt
 
         # Boundary collision handling (vectorized bounce)
+        # Detect collisions before clipping
+        collision_events = []
+        for i, axis in enumerate(['x', 'y', 'z']):
+            if r_new[i] <= self.bounds_min[i] or r_new[i] >= self.bounds_max[i]:
+                # Create collision event
+                event_location = r_new.copy()
+                event_location[i] = self.bounds_min[i] if r_new[i] <= self.bounds_min[i] else self.bounds_max[i]
+                collision_events.append(PhysicsEvent(
+                    location=event_location,
+                    radius=0.5,  # Event influence radius
+                    label=f"boundary_collision_{axis}",
+                    sources=["bounds", f"{axis}_boundary", "body"]
+                ))
+
         r_new = np.clip(r_new, self.bounds_min, self.bounds_max)
         # Bounce velocity when hitting bounds
         v_new = np.where(r_new == self.bounds_min, -v_new, v_new)
         v_new = np.where(r_new == self.bounds_max, -v_new, v_new)
 
-        # Create new state
-        new_state = BodyState(r=r_new, v=v_new, theta=theta_new, omega=omega_new)
+        # Create new state with events
+        new_state = BodyState(r=r_new, v=v_new, theta=theta_new, omega=omega_new, events=collision_events)
         return new_state
 
     def step_multiple(self, bodies: list[Body], actions: list[np.ndarray], dt: float) -> list[BodyState]:

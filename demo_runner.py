@@ -11,6 +11,7 @@ State vector format (8 elements):
 """
 
 from typing import Optional, Tuple
+import numpy as np
 from simulation_outputs import (
     SimulationOutput,
     LoggingSimulationOutput,
@@ -37,14 +38,24 @@ class DemoRunner:
             visualizer = NullVisualizer({})
         return HovercraftEnv(visualizer=visualizer)
 
-    def run_test(self, control_source: ControlSource, steps: int = 50) -> None:
+    def run_test(self, control_source: ControlSource, steps: int = 50, initial_pos: tuple = None) -> None:
         """Run physics test with logging output."""
         env = self.create_environment()
+        
+        # Set initial position if provided
+        if initial_pos is not None:
+            import numpy as np
+            env.state.r = np.array(initial_pos)
+            env.state.v = np.zeros(3)  # Reset velocity
+            env.state.theta = 0.0
+            env.state.omega = 0.0
+            env.state.clear_events()
+        
         output = LoggingSimulationOutput(env)
         output.run_simulation(control_source, steps)
         env.close()
 
-    def run_visualization(self, control_source: ControlSource, steps: int = 200) -> None:
+    def run_visualization(self, control_source: ControlSource, steps: int = 200, initial_pos: tuple = None) -> None:
         """Run demo with live visualization."""
         # Create environment with Open3D visualizer
         bounds = self.physics_config.get('bounds', [[-5, 5], [-5, 5], [0, 10]])
@@ -62,6 +73,16 @@ class DemoRunner:
             return
 
         env = HovercraftEnv(visualizer=visualizer)
+        
+        # Set initial position if provided
+        if initial_pos is not None:
+            import numpy as np
+            env.state.r = np.array(initial_pos)
+            env.state.v = np.zeros(3)  # Reset velocity
+            env.state.theta = 0.0
+            env.state.omega = 0.0
+            env.state.clear_events()
+
         output = LiveVisualizationOutput(env)
 
         try:
@@ -122,6 +143,9 @@ class BouncingVideoDemo(VideoSimulationOutput):
         print(f"Creating bouncing video: {self.video_name}")
 
     def process_step(self, step: int, control: Tuple[float, float]) -> None:
+        # Display events if any occurred (call parent method for event logging)
+        super().process_step(step, control)
+
         if step % 2 == 0:  # More frequent capture for smoother video
             frame_path = f"{self.frames_dir}/frame_{self.frame_count:04d}.png"
             try:

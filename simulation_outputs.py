@@ -62,22 +62,37 @@ class NullSimulationOutput(SimulationOutput):
 
 
 class LoggingSimulationOutput(SimulationOutput):
-    """Logging output for physics testing with periodic position reports."""
+    """Logging output for physics testing with detailed state reports."""
 
-    def __init__(self, env: HovercraftEnv, log_interval: int = 25):
+    def __init__(self, env: HovercraftEnv, log_interval: int = 10):
         super().__init__(env)
         self.log_interval = log_interval
 
     def initialize(self) -> None:
-        print(f"Starting simulation with {self.env.physics.__class__.__name__}")
+        print(f"🎯 Starting simulation with {self.env.physics.__class__.__name__}")
+        print("Step | Position (x,y,z) | Velocity (vx,vy,vz) | Control (F,τ) | Theta | Omega")
+        print("-" * 80)
 
     def process_step(self, step: int, control: Tuple[float, float]) -> None:
+        # Display events if any occurred
+        if self.env.state.events:
+            for event in self.env.state.events:
+                print(f"      ⚡ EVENT: {event.label} at ({event.location[0]:.2f},{event.location[1]:.2f},{event.location[2]:.2f}) "
+                      f"sources: {event.sources}")
+
         if step % self.log_interval == 0:
-            pos = self.env.position
-            print(f"Step {step}: Position ({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f})")
+            pos = self.env.state.r
+            vel = self.env.state.v
+            theta = self.env.state.theta
+            omega = self.env.state.omega
+            print(f"{step:4d} | ({pos[0]:6.2f},{pos[1]:6.2f},{pos[2]:6.2f}) | "
+                  f"({vel[0]:6.2f},{vel[1]:6.2f},{vel[2]:6.2f}) | "
+                  f"({control[0]:5.2f},{control[1]:5.2f}) | "
+                  f"{theta:6.2f} | {omega:6.2f}")
 
     def finalize(self) -> None:
-        print("Simulation completed.")
+        print("-" * 80)
+        print("✅ Simulation completed.")
 
 
 class VideoSimulationOutput(SimulationOutput):
@@ -105,6 +120,12 @@ class VideoSimulationOutput(SimulationOutput):
         print(f"Frames directory exists: {os.path.exists(self.frames_dir)}")
 
     def process_step(self, step: int, control: Tuple[float, float]) -> None:
+        # Display events if any occurred
+        if self.env.state.events:
+            for event in self.env.state.events:
+                print(f"⚡ EVENT: {event.label} at ({event.location[0]:.2f},{event.location[1]:.2f},{event.location[2]:.2f}) "
+                      f"sources: {event.sources}")
+
         if step % max(1, 25 // self.fps) == 0:  # Frame capture rate
             frame_path = f"{self.frames_dir}/frame_{self.frame_count:04d}.png"
             print(f"Capturing frame {self.frame_count} at step {step}: {frame_path}")
@@ -152,6 +173,12 @@ class LiveVisualizationOutput(SimulationOutput):
         print("Press 'q' or close the window to exit")
 
     def process_step(self, step: int, control: Tuple[float, float]) -> None:
+        # Display events if any occurred
+        if self.env.state.events:
+            for event in self.env.state.events:
+                print(f"⚡ EVENT: {event.label} at ({event.location[0]:.2f},{event.location[1]:.2f},{event.location[2]:.2f}) "
+                      f"sources: {event.sources}")
+
         # Update visualization
         self.env.visualizer.update(self.env.state)
         self.env.visualizer.render()
