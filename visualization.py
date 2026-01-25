@@ -1,9 +1,47 @@
 from abc import ABC, abstractmethod
-from components import Visualizer
 import numpy as np
+from typing import (
+    Tuple,
+)
 
 from state import BodyState
+from components import Visualizer, VisualizationOutput
 
+class Open3DVisualizationOutput(VisualizationOutput):
+    """Visualization output handler for Open3D visualizer."""
+
+    def __init__(self, visualizer: "Open3DVisualizer"):
+        super(Open3DVisualizationOutput, self).__init__(visualizer)
+        # camera params
+        self.camera_position = np.array([5, 5, 5])
+        self.camera_look_at = np.array([0, 0, 1])
+        self.up_vector = np.array([0, 0, 1])
+        self.zoom = 0.8
+
+        self._set_camera()
+
+
+    def _set_camera(self) -> None:
+        ctr = self.visualizer.vis.get_view_control()
+        ctr.set_lookat(self.camera_look_at)
+        ctr.set_front(self.camera_position)
+        ctr.set_up(self.up_vector)  # Z-up
+        ctr.set_zoom(self.zoom)
+
+    def set_camera(self, position: Tuple[float, float, float], look_at: Tuple[float, float, float]) -> None:
+        self.camera_position = np.array(position)
+        self.camera_look_at = np.array(look_at)
+        self._set_camera()
+
+    def set_zoom(self, zoom: float) -> None:
+        self.zoom = zoom
+        self._set_camera()
+
+    def render(self) -> None:
+        self.visualizer.render()
+
+    def capture_frame(self, filename: str) -> None:
+        self.visualizer.capture_frame(filename)
 
 class Open3DVisualizer(Visualizer):
     """Open3D-based 3D visualization."""
@@ -69,8 +107,6 @@ class Open3DVisualizer(Visualizer):
     def update(self, state: BodyState):
         """Update hovercraft position and orientation."""
 
-
-
         # Reset and transform hovercraft
         self.hovercraft.vertices = self.o3d.utility.Vector3dVector(self.hovercraft_original_vertices)
         self.hovercraft.translate(state.r, relative=False)
@@ -82,36 +118,12 @@ class Open3DVisualizer(Visualizer):
         self.vis.poll_events()
         self.vis.update_renderer()
 
-    def render(self):
-        """Render current frame."""
-        self.vis.poll_events()
-        self.vis.update_renderer()
-        # Small delay to allow window to update
-        import time
-        time.sleep(0.01)
+    def get_visualization_output(self) -> VisualizationOutput:
+        return Open3DVisualizationOutput(self)
+
 
     def close(self):
         """Clean up Open3D resources."""
         self.vis.destroy_window()
 
-    def capture_frame(self, filename: str):
-        """Capture current frame to image file."""
-        self.vis.capture_screen_image(filename)
 
-class NullVisualizer(Visualizer):
-    """No-op visualizer for headless operation."""
-
-    def __init__(self, bounds: dict):
-        pass
-
-    def update(self, state: np.ndarray):
-        pass
-
-    def render(self):
-        pass
-
-    def close(self):
-        pass
-
-    def capture_frame(self, filename: str):
-        pass

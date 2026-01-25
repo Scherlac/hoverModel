@@ -8,8 +8,8 @@ import numpy as np
 import time
 import os
 from typing import Optional, Tuple
-from components import Environment, SimulationComponent, SimulationOutput
-from visualization import NullVisualizer, Visualizer, Open3DVisualizer
+from components import Environment, SimulationComponent, SimulationOutput, NullVisualizer, VisualizationOutput
+from visualization import Visualizer, Open3DVisualizer, Open3DVisualizationOutput
 from control_sources import ControlSource
 
 
@@ -71,24 +71,20 @@ class VideoSimulationOutput(SimulationOutput):
         self.frames_dir = "frames"
         self.frame_count = 0
         
-        # Create and register visualizer
-        bounds = env.bounds if hasattr(env, 'bounds') else {'x': (-5, 5), 'y': (-5, 5), 'z': (0, 10)}
-        try:
-            self.visualizer = Open3DVisualizer(bounds)
-            env.register_visualizer(self.visualizer)
-        except:
-            self.visualizer = NullVisualizer(bounds)
-            env.register_visualizer(self.visualizer)
+        self.visualizer : Open3DVisualizer = env.get_specific_visualizer(Open3DVisualizer)
+        self.visualization_output : Open3DVisualizationOutput = self.visualizer.get_visualization_output()
+        self.visualization_output
+
 
 
     def initialize(self) -> None:
         # Camera setup
-        if hasattr(self.visualizer, 'vis'):
-            ctr = self.visualizer.vis.get_view_control()
-            ctr.set_zoom(0.8)
-            ctr.set_front([0.7, 0.3, 0.5])
-            ctr.set_lookat([0, 0, 1])
-            ctr.set_up([0, 0, 1])
+        if self.visualization_output:
+            self.visualization_output.set_camera(
+                position=(0.7, 0.3, 0.5),
+                look_at=(0, 0, 1)
+            )
+            self.visualization_output.set_zoom(0.8)
 
         os.makedirs(self.frames_dir, exist_ok=True)
         print(f"Creating video: {self.video_name}")
@@ -106,14 +102,12 @@ class VideoSimulationOutput(SimulationOutput):
             frame_path = f"{self.frames_dir}/frame_{self.frame_count:04d}.png"
             print(f"Capturing frame {self.frame_count} at step {step}: {frame_path}")
             try:
-                self.visualizer.capture_frame(frame_path)
+                self.visualization_output.capture_frame(frame_path)
                 self.frame_count += 1
                 print(f"✅ Frame {self.frame_count-1} captured successfully: {os.path.exists(frame_path)}")
             except Exception as e:
                 # If frame capture fails, skip this frame
                 print(f"Warning: Frame capture failed at step {step}: {e}")
-
-        time.sleep(0.02)  # Control simulation speed
 
     def finalize(self) -> None:
         # Create video with ffmpeg
@@ -143,16 +137,20 @@ class LiveVisualizationOutput(SimulationOutput):
 
     def __init__(self, env: Environment):
         super().__init__(env)
-        # Create and register visualizer
-        bounds = env.bounds if hasattr(env, 'bounds') else {'x': (-5, 5), 'y': (-5, 5), 'z': (0, 10)}
-        try:
-            self.visualizer = Open3DVisualizer(bounds)
-            env.register_visualizer(self.visualizer)
-        except:
-            self.visualizer = NullVisualizer(bounds)
-            env.register_visualizer(self.visualizer)
+
+        self.visualizer : Open3DVisualizer = env.get_specific_visualizer(Open3DVisualizer)
+        self.visualization_output : Open3DVisualizationOutput = self.visualizer.get_visualization_output()
+        self.visualization_output
 
     def initialize(self) -> None:
+        # Camera setup
+        if self.visualization_output:
+            self.visualization_output.set_camera(
+                position=(0.7, 0.3, 0.5),
+                look_at=(0, 0, 1)
+            )
+            self.visualization_output.set_zoom(0.8)
+
         print("🎮 Starting live visualization...")
         print("Press 'q' or close the window to exit")
 
@@ -164,9 +162,8 @@ class LiveVisualizationOutput(SimulationOutput):
                       f"sources: {event.sources}")
 
         # Update visualization
-        if self.visualizer:
-            self.visualizer.update(self.env.state)
-            self.visualizer.render()
+        if self.visualization_output:
+            self.visualization_output.render()
 
         # Small delay for smooth visualization
         time.sleep(0.05)
