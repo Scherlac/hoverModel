@@ -118,6 +118,11 @@ class Open3DVisualizer(Visualizer):
         self.vis.poll_events()
         self.vis.update_renderer()
 
+    def render(self) -> None:
+        """Render the current frame."""
+        self.vis.poll_events()
+        self.vis.update_renderer()
+
     def get_visualization_output(self) -> VisualizationOutput:
         return Open3DVisualizationOutput(self)
 

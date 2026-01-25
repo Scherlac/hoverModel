@@ -73,7 +73,7 @@ class VideoSimulationOutput(SimulationOutput):
         
         self.visualizer : Open3DVisualizer = env.get_specific_visualizer(Open3DVisualizer)
         self.visualization_output : Open3DVisualizationOutput = self.visualizer.get_visualization_output()
-        self.visualization_output
+        print(f"Live output using visualizer: {self.visualizer.__class__.__name__} and output: {self.visualization_output.__class__.__name__}")
 
 
 
@@ -140,7 +140,7 @@ class LiveVisualizationOutput(SimulationOutput):
 
         self.visualizer : Open3DVisualizer = env.get_specific_visualizer(Open3DVisualizer)
         self.visualization_output : Open3DVisualizationOutput = self.visualizer.get_visualization_output()
-        self.visualization_output
+        print(f"Live output using visualizer: {self.visualizer.__class__.__name__} and output: {self.visualization_output.__class__.__name__}")
 
     def initialize(self) -> None:
         # Camera setup
