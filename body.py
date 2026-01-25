@@ -29,8 +29,7 @@ class Body(ABC):
         Body._next_id += 1
         self.mass = mass
         self.moment_of_inertia = moment_of_inertia
-        self.shape = shape or {'type': 'sphere', 'radius': 0.5}
-
+        self.shape = shape or {'type': 'mesh', 'mesh_path': 'hoverBody_main.obj'}
         # Initialize state
         self.state = BodyState()
 
@@ -81,7 +80,8 @@ class Hovercraft(Body):
                  lift_force_std: float = 1.0,
                  rotational_noise_mean: float = 0.1,
                  rotational_noise_std: float = 0.5,
-                 friction_coefficient: float = 0.1):
+                 friction_coefficient: float = 0.1,
+                 shape: Optional[Dict[str, Any]] = None):
         """
         Initialize hovercraft body.
 
@@ -93,8 +93,9 @@ class Hovercraft(Body):
             rotational_noise_mean: Mean rotational noise
             rotational_noise_std: Standard deviation of rotational noise
             friction_coefficient: Ground friction coefficient
+            shape: Shape description (mesh, etc.)
         """
-        super().__init__(mass, moment_of_inertia, {'type': 'hovercraft', 'radius': 0.5})
+        super(Hovercraft, self).__init__(mass, moment_of_inertia, shape)
 
         # Hovercraft-specific properties
         self.lift_force_mean = lift_force_mean
@@ -159,7 +160,8 @@ class Hovercraft(Body):
             lift_force_std=self.lift_force_std,
             rotational_noise_mean=self.rotational_noise_mean,
             rotational_noise_std=self.rotational_noise_std,
-            friction_coefficient=self.friction_coefficient
+            friction_coefficient=self.friction_coefficient,
+            shape=self.shape
         )
         hovercraft.state = self.state.copy()
         return hovercraft

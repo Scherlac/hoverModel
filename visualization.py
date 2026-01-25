@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import pathlib
 import numpy as np
 from typing import (
     Tuple,
@@ -6,6 +7,8 @@ from typing import (
 
 from state import BodyState
 from components import Visualizer, VisualizationOutput
+
+ASSET_ROOT = pathlib.Path(__file__).parent / "assets"
 
 class Open3DVisualizationOutput(VisualizationOutput):
     """Visualization output handler for Open3D visualizer."""
@@ -16,7 +19,7 @@ class Open3DVisualizationOutput(VisualizationOutput):
         self.camera_position = np.array([5, 5, 5])
         self.camera_look_at = np.array([0, 0, 1])
         self.up_vector = np.array([0, 0, 1])
-        self.zoom = 0.8
+        self.zoom = 0.6
 
         self._set_camera()
 
@@ -61,7 +64,26 @@ class Open3DVisualizer(Visualizer):
         self._setup_environment(self.env.bounds)
 
         # Hovercraft geometry
-        self.hovercraft = o3d.geometry.TriangleMesh.create_cylinder(radius=1.0, height=0.5)
+        body_shape = self.env.bodies[0].shape
+        mesh_path = body_shape.get('mesh_path') if isinstance(body_shape, dict) else None
+        if mesh_path:
+            abs_mesh_path = ASSET_ROOT / mesh_path
+            print(f"Loading hovercraft mesh from {str(abs_mesh_path)}")
+            self.hovercraft = self.o3d.io.read_triangle_mesh(str(abs_mesh_path))
+            print(f"Mesh loaded: vertices={len(self.hovercraft.vertices)}, triangles={len(self.hovercraft.triangles)}")
+            if not self.hovercraft.has_vertices():
+                print(f"Warning: Failed to load mesh from {str(abs_mesh_path)}, falling back to cylinder")
+                self.hovercraft = self.o3d.geometry.TriangleMesh.create_cylinder(radius=1.0, height=0.5)
+            else:
+                # Ensure it's triangulated
+                if not self.hovercraft.is_triangle_mesh():
+                    print("Triangulating mesh...")
+                    self.hovercraft = self.hovercraft.triangulate()
+                    print(f"After triangulation: vertices={len(self.hovercraft.vertices)}, triangles={len(self.hovercraft.triangles)}")
+        else:
+            print(f"Falling back to default hovercraft geometry (cylinder)")
+            self.hovercraft = self.o3d.geometry.TriangleMesh.create_cylinder(radius=1.0, height=0.5)
+        
         self.hovercraft.compute_vertex_normals()
         self.hovercraft.paint_uniform_color([0, 0.5, 1])
         self.vis.add_geometry(self.hovercraft)
