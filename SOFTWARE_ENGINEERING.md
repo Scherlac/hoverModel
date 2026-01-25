@@ -67,11 +67,11 @@ High-level modules don't depend on low-level modules:
 
 **Application Logic:**
 - `environment.py`: Orchestrates bodies and physics
-- `demo_runner.py`: Orchestrates demonstrations
+- `demo.py`: CLI interface and demo orchestration
 
 **Interface Adapters:**
 - `control_sources.py`: Input adapters (control signal generation)
-- `simulation_outputs.py`: Output adapters (result handling)
+- `simulation_outputs.py`: Output adapters (result handling with auto-cleanup)
 - `visualization.py`: UI adapters (3D rendering)
 
 **External Interfaces:**
@@ -79,20 +79,20 @@ High-level modules don't depend on low-level modules:
 
 ### Dependency Flow
 ```
-Demo Runner → [Control Sources] → Environment → Bodies + Physics + State
-Demo Runner → [Multiple Outputs] → Environment (shared state)
+CLI (demo.py) → [Control Sources] → Environment → Bodies + Physics + State
+CLI (demo.py) → [Multiple Outputs] → Environment (shared state)
                                       ↓
                                Visualization + Logging + Video
 ```
 
 **Multi-Output Architecture:**
-- Demo Runner orchestrates multiple control sources sequentially
-- Demo Runner orchestrates multiple outputs simultaneously
-- All outputs share the same environment state through synchronization
-- Outputs can include: console logging, live visualization, video recording
-- Control sources can include: hovering, linear, rotational, sinusoidal, chaotic
+- CLI orchestrates control sources and outputs through unified interface
+- Multiple outputs can run simultaneously sharing environment state
+- Outputs include: console logging, live visualization, video recording with cleanup
+- Control sources include: hovering, linear, rotational, sinusoidal, chaotic
+- Automatic resource management prevents workspace clutter
 
-All dependencies point inward toward the core business logic. Bodies define their own properties, physics operates on them, and the environment orchestrates their interactions while supporting multiple simultaneous output streams.
+All dependencies point inward toward the core business logic. Bodies define their own properties, physics operates on them, and the environment orchestrates their interactions while supporting multiple simultaneous output streams with proper cleanup.
 
 ## Design Patterns
 
@@ -102,13 +102,13 @@ Interchangeable algorithms for control and output:
 ```python
 # Control strategies
 control = ControlSourceFactory.create_hovering()  # Zero input strategy
-control = ControlSourceFactory.create_linear()    # Constant force strategy
+control = ControlSourceFactory.create_linear(force=1.5)    # Constant force strategy
 control = ControlSourceFactory.create_chaotic()   # Boundary testing strategy
 
 # Output strategies
 output = LoggingSimulationOutput(env)      # Console logging
-output = VideoSimulationOutput(env)        # MP4 video generation
-output = NullSimulationOutput(env)         # Silent operation
+output = LiveVisualizationOutput(env)      # Interactive 3D display
+output = VideoSimulationOutput(env, "demo.mp4", fps=10)  # MP4 video with auto-cleanup
 ```
 
 ### Factory Pattern
@@ -129,10 +129,14 @@ env = HovercraftEnv(physics_engine=custom_physics, visualizer=null_vis)
 Flexible component combination:
 
 ```python
-# Compose any control source with any output
-demo = DemoRunner()
-demo.run_test(hovering_control, steps=50)        # Test with logging
-demo.create_video(chaotic_control, "test.mp4")   # Video with boundary testing
+# CLI composition - any control with any output
+# python demo.py run --control linear:force=2.0:steps=100 --output video:filename=demo.mp4:fps=10
+
+# Programmatic composition
+env = HovercraftEnv()
+control = ControlSourceFactory.create_linear(force=2.0)
+output = VideoSimulationOutput(env, "demo.mp4", fps=10)
+env.run_simulation(control, steps=100)
 ```
 
 ### Dependency Injection
@@ -231,12 +235,20 @@ class BodyState:
 ### Memory Management
 - Lazy initialization of visualizers
 - Efficient state representation (8 floats total)
+- Automatic cleanup of temporary frame directories after video generation
 - Minimal object creation in simulation loops
 
 ### Computational Efficiency
 - Physics calculations: O(1) per time step
 - Visualization: Optional, can be disabled for testing
-- Video generation: Frame capture only when needed
+- Video generation: Frame capture only when needed with automatic cleanup
+- Resource management: Prevents disk space accumulation from temporary files
+
+### Automatic Resource Management
+- **Frame Cleanup**: Video generation automatically removes temporary directories after successful encoding
+- **Error Handling**: Failed video generation preserves frames for debugging
+- **Workspace Hygiene**: No leftover temporary files cluttering the development environment
+- **Performance**: Efficient FFmpeg integration with optimized encoding settings
 
 ## Testing and Maintainability
 
@@ -276,11 +288,21 @@ state = BodyState(
 )
 ```
 
+### CLI Interface Design
+```bash
+# Unified command structure with flexible specification
+python demo.py run --control linear:force=2.0:steps=100 --output video:filename=demo.mp4:fps=10
+
+# Custom starting positions for boundary testing
+python demo.py run --control linear:force=20.0:steps=100 --output video:filename=bounce.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0
+```
+
 ### Consistent Naming
 - `step()`: Advance simulation by one time step
 - `reset()`: Return to initial state
 - `render()`: Update visualization
 - `close()`: Clean up resources
+- `run_simulation()`: Execute complete simulation with control and outputs
 
 ### Type Safety
 - Full type hints throughout codebase
@@ -290,15 +312,16 @@ state = BodyState(
 ## File Organization
 
 ### File-Level Cohesion
-- **`main.py`**: Entry point and basic visualization
-- **`demo.py`**: CLI interface and demo orchestration
-- **`environment.py`**: Core environment orchestration
-- **`physics.py`**: Physics simulation logic
+- **`main.py`**: Legacy entry point and basic visualization
+- **`demo.py`**: CLI interface and demo orchestration with unified command structure
+- **`environment.py`**: Core environment orchestration and body management
+- **`body.py`**: Physical body representations and properties
 - **`state.py`**: State representation and persistence
-- **`control_sources.py`**: Input generation strategies
-- **`simulation_outputs.py`**: Output handling strategies
-- **`demo_runner.py`**: Demo configuration and execution
-- **`visualization.py`**: 3D rendering backends
+- **`physics.py`**: Physics simulation logic and engine implementations
+- **`control_sources.py`**: Input generation strategies and factory patterns
+- **`simulation_outputs.py`**: Output handling strategies with automatic cleanup
+- **`components.py`**: Abstract base classes and interfaces
+- **`visualization.py`**: 3D rendering backends and visualizer implementations
 
 ### Import Structure
 - Clear dependency hierarchy
@@ -309,6 +332,20 @@ state = BodyState(
 ## Evolution and Refactoring
 
 ### Architectural Improvements Made
+
+**CLI Interface Refinement (2026):**
+- **Unified Command Structure**: Single `run` command with `--control` and `--output` options
+- **Flexible Control Specification**: Control types specified as `type:param=value:param=value` format
+- **Modular Output System**: Console, live visualization, and video outputs with consistent interface
+- **Custom Starting Positions**: `--start-x`, `--start-y`, `--start-z` options for boundary testing
+- **Improved User Experience**: Simplified command-line interface with comprehensive help
+
+**Video Generation Enhancements (2026):**
+- **Automatic Frame Cleanup**: Temporary frame directories are automatically removed after successful video encoding
+- **Improved Error Handling**: Failed video generation preserves frames for debugging
+- **Workspace Management**: Clean workspace with no leftover temporary files
+- **Performance**: Efficient FFmpeg integration with optimized encoding settings
+- **Resource Management**: Proper cleanup prevents disk space accumulation
 
 **Body-Physics Separation (Latest):**
 - **`Body` Abstract Class**: Base class for physical bodies with mass, shape, and force calculations
@@ -328,7 +365,6 @@ state = BodyState(
 **File-Level Separation:**
 - **`body.py`**: Physical body representations and properties
 - **`simulation_outputs.py`**: Pure output handling (logging, video generation)
-- **`demo_runner.py`**: Demo orchestration and configuration logic
 - Clear separation: "what to output" vs "how to configure demos"
 
 **Semantic Improvements:**
@@ -343,35 +379,43 @@ state = BodyState(
 - `BodyState`: Kinematic state representation
 - `PhysicsEngine`: Numerical integration and constraints
 - `Environment`: Body management and orchestration
+- `SimulationOutput`: Output handling with automatic cleanup
+- `demo.py`: CLI interface and unified command structure
 
 **Open/Closed Principle (OCP):**
 - New body types can be added without changing physics engine
 - New control sources/outputs without changing core logic
 - Abstract base classes enable extension through implementation
+- CLI accepts new control/output specifications without code changes
 
 **Interface Segregation Principle (ISP):**
 - `Body.get_forces()`: Bodies define their own physics
 - `PhysicsEngine.step()`: Physics operates on body abstractions
+- `SimulationOutput.finalize()`: Outputs handle their own cleanup
 - Clean interfaces prevent coupling between layers
 
 **Dependency Inversion Principle (DIP):**
 - High-level environment depends on body/physics abstractions
+- CLI depends on control/output abstractions
 - Concrete implementations can be swapped without changing interface
 - Testable through dependency injection
 
 **YAGNI (You Aren't Gonna Need It):**
-- Simple interfaces over complex abstractions
+- Simple CLI interface over complex command hierarchies
 - Minimal viable architecture for current requirements
+- Automatic cleanup prevents unnecessary disk management
 
 **DRY (Don't Repeat Yourself):**
 - Single `Body` class instead of duplicate state logic
 - Factory patterns eliminate repetitive object creation
 - Abstract base classes reduce code duplication
+- Unified CLI command structure
 
 **KISS (Keep It Simple, Stupid):**
 - Vector-based state instead of complex class hierarchies
 - Composition over inheritance for flexibility
 - Clear, focused responsibilities per component
+- Automatic resource management
 
 ---
 
