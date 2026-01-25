@@ -27,15 +27,16 @@ def run(controls, outputs, start_x, start_y, start_z):
     click.echo(f"🚀 Running {len(control_configs)} control(s), {len(output_configs)} output(s)")
     
     # Create environment first
-    shared_env = HovercraftEnv()
+    env = HovercraftEnv()
     
     # Create outputs (they register themselves with the environment)
-    output_instances = [create_output(oc['type'], oc['params'], shared_env) for oc in output_configs]
+    output_instances = [create_output(oc['type'], oc['params'], env) for oc in output_configs]
     
     for config in control_configs:
         control = create_control(config['type'], config['params'])
         # Use environment's run_simulation method
-        shared_env.run_simulation(control, output_instances, config['steps'], initial_pos)
+        print(f"Running simulation with {config['steps']} steps")
+        env.run_simulation(control, config['steps'], initial_pos)
 
 def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
     parts = spec.split(':')
