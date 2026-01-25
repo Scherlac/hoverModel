@@ -201,7 +201,7 @@ class HovercraftEnv(Environment):
         return self.bodies.copy()
 
 
-    def run_simulation(self, control_source, outputs: list, steps: int, initial_pos=None):
+    def run_simulation(self, control_source, steps: int, initial_pos=None):
         """Run simulation with control source and multiple outputs."""
         # Set initial position if provided
         if initial_pos:
@@ -212,20 +212,25 @@ class HovercraftEnv(Environment):
             self.state.clear_events()
 
         # Initialize all outputs
-        for output in outputs:
+        for output in self.outputs:
             output.initialize()
 
         # Run simulation steps
         for step in range(steps):
             control_input = control_source.get_control(step)
             self.step(control_input)
+
+            # process step for all visualizers/outputs
+            for visualizer in self.visualizers:
+                visualizer.update(self.state)
             
-            for output in outputs:
+            for output in self.outputs:
                 output.process_step(step, control_input)
 
         # Finalize all outputs
-        for output in outputs:
+        for output in self.outputs:
             output.finalize()
+            
 
     def get_config(self) -> Dict[str, Any]:
         """Get environment configuration."""

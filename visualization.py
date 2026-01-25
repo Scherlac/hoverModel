@@ -61,7 +61,7 @@ class Open3DVisualizer(Visualizer):
         self._setup_environment(self.env.bounds)
 
         # Hovercraft geometry
-        self.hovercraft = o3d.geometry.TriangleMesh.create_cylinder(radius=0.3, height=0.2)
+        self.hovercraft = o3d.geometry.TriangleMesh.create_cylinder(radius=1.0, height=0.5)
         self.hovercraft.compute_vertex_normals()
         self.hovercraft.paint_uniform_color([0, 0.5, 1])
         self.vis.add_geometry(self.hovercraft)
@@ -106,6 +106,8 @@ class Open3DVisualizer(Visualizer):
 
     def update(self, state: BodyState):
         """Update hovercraft position and orientation."""
+        with open('debug.log', 'a') as f:
+            f.write(f"Visualizer update called with position {state.r}\n")
 
         # Reset and transform hovercraft
         self.hovercraft.vertices = self.o3d.utility.Vector3dVector(self.hovercraft_original_vertices)
@@ -122,6 +124,10 @@ class Open3DVisualizer(Visualizer):
         """Render the current frame."""
         self.vis.poll_events()
         self.vis.update_renderer()
+
+    def capture_frame(self, filename: str) -> None:
+        self.render()
+        self.vis.capture_screen_image(filename)
 
     def get_visualization_output(self) -> VisualizationOutput:
         return Open3DVisualizationOutput(self)

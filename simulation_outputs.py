@@ -81,10 +81,10 @@ class VideoSimulationOutput(SimulationOutput):
         # Camera setup
         if self.visualization_output:
             self.visualization_output.set_camera(
-                position=(0.7, 0.3, 0.5),
-                look_at=(0, 0, 1)
+                position=(10, 0, 5),
+                look_at=(2.5, 0, 5)
             )
-            self.visualization_output.set_zoom(0.8)
+            self.visualization_output.set_zoom(0.5)
 
         os.makedirs(self.frames_dir, exist_ok=True)
         print(f"Creating video: {self.video_name}")
@@ -123,13 +123,11 @@ class VideoSimulationOutput(SimulationOutput):
         except Exception as e:
             print(f"❌ FFmpeg error: {e}")
 
-        # Cleanup - only remove frames if video creation succeeded
+        # Cleanup - keep frames for debugging
         import shutil
-        if success and os.path.exists(self.frames_dir):
-            shutil.rmtree(self.frames_dir)
-            print(f"🧹 Cleaned up temporary frames directory")
-        elif not success:
-            print(f"📁 Frames saved in '{self.frames_dir}' directory for debugging")
+        if success:
+            print(f"✅ Video created successfully: {self.video_name}")
+        print(f"📁 Frames saved in '{self.frames_dir}' directory for debugging")
 
 
 class LiveVisualizationOutput(SimulationOutput):
@@ -146,8 +144,8 @@ class LiveVisualizationOutput(SimulationOutput):
         # Camera setup
         if self.visualization_output:
             self.visualization_output.set_camera(
-                position=(0.7, 0.3, 0.5),
-                look_at=(0, 0, 1)
+                position=(10, 0, 5),
+                look_at=(2.5, 0, 5)
             )
             self.visualization_output.set_zoom(0.8)
 
