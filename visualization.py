@@ -74,12 +74,6 @@ class Open3DVisualizer(Visualizer):
             if not self.hovercraft.has_vertices():
                 print(f"Warning: Failed to load mesh from {str(abs_mesh_path)}, falling back to cylinder")
                 self.hovercraft = self.o3d.geometry.TriangleMesh.create_cylinder(radius=1.0, height=0.5)
-            else:
-                # Ensure it's triangulated
-                if not self.hovercraft.is_triangle_mesh():
-                    print("Triangulating mesh...")
-                    self.hovercraft = self.hovercraft.triangulate()
-                    print(f"After triangulation: vertices={len(self.hovercraft.vertices)}, triangles={len(self.hovercraft.triangles)}")
         else:
             print(f"Falling back to default hovercraft geometry (cylinder)")
             self.hovercraft = self.o3d.geometry.TriangleMesh.create_cylinder(radius=1.0, height=0.5)
