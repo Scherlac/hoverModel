@@ -2,6 +2,7 @@ import click
 from control_sources import ControlSourceFactory
 from demo_runner import DemoRunner
 from typing import List, Dict, Any
+from components import Environment
 from simulation_outputs import LoggingSimulationOutput, LiveVisualizationOutput, VideoSimulationOutput
 from environment import HovercraftEnv
 
@@ -25,9 +26,12 @@ def run(controls, outputs, start_x, start_y, start_z):
     
     click.echo(f"🚀 Running {len(control_configs)} control(s), {len(output_configs)} output(s)")
     
+    # Create single shared environment for all outputs
+    shared_env = _create_shared_env()
+    
     for config in control_configs:
         control = create_control(config['type'], config['params'])
-        output_instances = [create_output(oc['type'], oc['params']) for oc in output_configs]
+        output_instances = [create_output(oc['type'], oc['params'], shared_env) for oc in output_configs]
         run_simulation(control, output_instances, config['steps'], initial_pos)
 
 def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
@@ -53,14 +57,14 @@ def create_control(control_type: str, params: Dict[str, Any]):
     elif ct == 'chaotic': return ControlSourceFactory.create_chaotic()
     raise click.ClickException(f"Unknown control: {control_type}")
 
-def create_output(output_type: str, output_params: Dict[str, Any]):
+def create_output(output_type: str, output_params: Dict[str, Any], env: Environment):
     ot = output_type.lower()
-    if ot in ('console', 'logging'): return LoggingSimulationOutput(runner.create_environment())
-    elif ot in ('live', 'visualization'): return LiveVisualizationOutput(_create_env())
-    elif ot == 'video': return VideoSimulationOutput(_create_env(), output_params.get('filename', 'demo.mp4'), int(output_params.get('fps', 25)))
+    if ot in ('console', 'logging'): return LoggingSimulationOutput(env)
+    elif ot in ('live', 'visualization'): return LiveVisualizationOutput(env)
+    elif ot == 'video': return VideoSimulationOutput(env, output_params.get('filename', 'demo.mp4'), int(output_params.get('fps', 25)))
     raise click.ClickException(f"Unknown output: {output_type}")
 
-def _create_env():
+def _create_shared_env():
     bounds = runner.physics_config.get('bounds', [[-5, 5], [-5, 5], [0, 10]])
     try:
         from visualization import Open3DVisualizer
@@ -72,34 +76,27 @@ def _create_env():
 def run_simulation(control, outputs: List, steps: int, initial_pos):
     if not outputs: return
     
-    main_env = next((o.env for o in outputs if isinstance(o, (LiveVisualizationOutput, VideoSimulationOutput))), outputs[0].env)
+    # All outputs share the same environment
+    shared_env = outputs[0].env
     
     if initial_pos:
         import numpy as np
-        main_env.state.r = np.array(initial_pos)
-        main_env.state.v = np.zeros(3)
-        main_env.state.theta = main_env.state.omega = 0.0
-        main_env.state.clear_events()
+        shared_env.state.r = np.array(initial_pos)
+        shared_env.state.v = np.zeros(3)
+        shared_env.state.theta = shared_env.state.omega = 0.0
+        shared_env.state.clear_events()
     
     for output in outputs: output.initialize()
     
     for step in range(steps):
         control_input = control.get_control(step)
-        main_env.step(control_input)
-        
-        for output in outputs:
-            if output.env is not main_env:
-                output.env.state.r = main_env.state.r.copy()
-                output.env.state.v = main_env.state.v.copy()
-                output.env.state.theta = main_env.state.theta
-                output.env.state.omega = main_env.state.omega
-                output.env.state.events = main_env.state.events.copy() if main_env.state.events else []
+        shared_env.step(control_input)
         
         for output in outputs: output.process_step(step, control_input)
     
     for output in outputs: 
         output.finalize()
-        if hasattr(output.env, 'close'): output.env.close()
+        if hasattr(shared_env, 'close'): shared_env.close()
 
 def run_all_tests():
     click.echo("🧪 Running tests...")

@@ -79,12 +79,20 @@ High-level modules don't depend on low-level modules:
 
 ### Dependency Flow
 ```
-Demo Runner → Environment → Bodies + Physics + State
-Demo Runner → Outputs → Visualization
-Demo Runner → Control Sources → Environment
+Demo Runner → [Control Sources] → Environment → Bodies + Physics + State
+Demo Runner → [Multiple Outputs] → Environment (shared state)
+                                      ↓
+                               Visualization + Logging + Video
 ```
 
-All dependencies point inward toward the core business logic. Bodies define their own properties, physics operates on them, and the environment orchestrates their interactions.
+**Multi-Output Architecture:**
+- Demo Runner orchestrates multiple control sources sequentially
+- Demo Runner orchestrates multiple outputs simultaneously
+- All outputs share the same environment state through synchronization
+- Outputs can include: console logging, live visualization, video recording
+- Control sources can include: hovering, linear, rotational, sinusoidal, chaotic
+
+All dependencies point inward toward the core business logic. Bodies define their own properties, physics operates on them, and the environment orchestrates their interactions while supporting multiple simultaneous output streams.
 
 ## Design Patterns
 

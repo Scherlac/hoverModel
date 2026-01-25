@@ -10,45 +10,14 @@ import os
 from typing import Optional, Tuple
 from environment import HovercraftEnv
 from physics import HovercraftPhysics
+from components import Environment, SimulationComponent
 from visualization import NullVisualizer, Visualizer
 from control_sources import ControlSource
+import open3d.visualization.
 
 
-class SimulationOutput(ABC):
-    """Abstract base class for simulation output handlers."""
 
-    def __init__(self, env: HovercraftEnv):
-        self.env = env
-        self.step_count = 0
-
-    @abstractmethod
-    def initialize(self) -> None:
-        """Initialize the output handler."""
-        pass
-
-    @abstractmethod
-    def process_step(self, step: int, control: Tuple[float, float]) -> None:
-        """Process a single simulation step."""
-        pass
-
-    @abstractmethod
-    def finalize(self) -> None:
-        """Finalize and cleanup the output handler."""
-        pass
-
-    def run_simulation(self, control_source: ControlSource, steps: int) -> None:
-        """Run complete simulation with given control source."""
-        self.initialize()
-
-        for step in range(steps):
-            control = control_source.get_control(step)
-            self.env.step(control)
-            self.process_step(step, control)
-
-        self.finalize()
-
-
-class NullSimulationOutput(SimulationOutput):
+class NullSimulationOutput(SimulationComponent):
     """Null output for testing - no visualization or logging."""
 
     def initialize(self) -> None:
@@ -61,7 +30,7 @@ class NullSimulationOutput(SimulationOutput):
         pass
 
 
-class LoggingSimulationOutput(SimulationOutput):
+class LoggingSimulationOutput(SimulationComponent):
     """Logging output for physics testing with detailed state reports."""
 
     def __init__(self, env: HovercraftEnv, log_interval: int = 10):
@@ -95,20 +64,34 @@ class LoggingSimulationOutput(SimulationOutput):
         print("✅ Simulation completed.")
 
 
-class VideoSimulationOutput(SimulationOutput):
+class VideoSimulationOutput(SimulationComponent):
     """Video output with Open3D visualization and frame capture."""
 
-    def __init__(self, env: HovercraftEnv, video_name: str, fps: int = 25):
+    def __init__(
+            self, 
+            env: HovercraftEnv, 
+            video_name: str, fps: int = 25,
+            visualizer: Optional[o3d.o3d
+            camera_index: int = 0
+            ):
         super().__init__(env)
         self.video_name = video_name
         self.fps = fps
         self.frames_dir = "frames"
         self.frame_count = 0
+        self.visualizer = None
+        self.camera_index = None
+        self.ctr : 
+        if visualizer:
+            self.visualizer = visualizer
+            self.camera_index = camera_index
+            self.ctr = visualizer.get_camera_control(camera_index)
+
 
     def initialize(self) -> None:
         # Camera setup
-        if hasattr(self.env.visualizer, 'vis'):
-            ctr = self.env.visualizer.vis.get_view_control()
+        if self.ctr:
+            ctr = self.ctr
             ctr.set_zoom(0.8)
             ctr.set_front([0.7, 0.3, 0.5])
             ctr.set_lookat([0, 0, 1])
@@ -162,11 +145,16 @@ class VideoSimulationOutput(SimulationOutput):
             print(f"📁 Frames saved in '{self.frames_dir}' directory for debugging")
 
 
-class LiveVisualizationOutput(SimulationOutput):
+class LiveVisualizationOutput(SimulationComponent):
     """Live visualization output with interactive Open3D display."""
 
-    def __init__(self, env: HovercraftEnv):
+    def __init__(
+            self, 
+            env: HovercraftEnv,
+            visualizer: Optional[Visualizer] = None
+            ):
         super().__init__(env)
+        self.visualizer = visualizer
 
     def initialize(self) -> None:
         print("🎮 Starting live visualization...")
@@ -180,15 +168,16 @@ class LiveVisualizationOutput(SimulationOutput):
                       f"sources: {event.sources}")
 
         # Update visualization
-        self.env.visualizer.update(self.env.state)
-        self.env.visualizer.render()
+        if self.visualizer:
+            self.visualizer.update(self.env.state)
+            self.visualizer.render()
 
         # Small delay for smooth visualization
         time.sleep(0.05)
 
         # Check if window is still open
-        if hasattr(self.env.visualizer, 'vis'):
-            if not self.env.visualizer.vis.poll_events():
+        if self.visualizer and hasattr(self.visualizer, 'vis'):
+            if not self.visualizer.vis.poll_events():
                 raise KeyboardInterrupt("Visualization window closed")
 
     def finalize(self) -> None:

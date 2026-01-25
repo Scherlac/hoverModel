@@ -1,38 +1,15 @@
 from abc import ABC, abstractmethod
+from components import Visualizer
 import numpy as np
 
-class Visualizer(ABC):
-    """Abstract base class for visualization backends."""
+from state import BodyState
 
-    @abstractmethod
-    def __init__(self, bounds: dict):
-        """Initialize visualizer with environment bounds."""
-        pass
-
-    @abstractmethod
-    def update(self, state):
-        """Update visualization with current state."""
-        pass
-
-    @abstractmethod
-    def render(self):
-        """Render the current frame."""
-        pass
-
-    @abstractmethod
-    def close(self):
-        """Clean up visualization resources."""
-        pass
-
-    @abstractmethod
-    def capture_frame(self, filename: str):
-        """Capture current frame to file."""
-        pass
 
 class Open3DVisualizer(Visualizer):
     """Open3D-based 3D visualization."""
 
-    def __init__(self, bounds: dict):
+    def __init__(self, env):
+        super(Open3DVisualizer, self).__init__(env)
         try:
             import open3d as o3d
             self.o3d = o3d
@@ -43,7 +20,7 @@ class Open3DVisualizer(Visualizer):
         self.vis.create_window(window_name="Hovercraft Simulation", width=1024, height=768, visible=True)
 
         # Setup environment geometry
-        self._setup_environment(bounds)
+        self._setup_environment(self.env.bounds)
 
         # Hovercraft geometry
         self.hovercraft = o3d.geometry.TriangleMesh.create_cylinder(radius=0.3, height=0.2)
@@ -89,22 +66,17 @@ class Open3DVisualizer(Visualizer):
         ctr.set_lookat([0, 0, 1])        # Look at center
         ctr.set_up([0, 0, 1])            # Up direction
 
-    def update(self, state):
+    def update(self, state: BodyState):
         """Update hovercraft position and orientation."""
-        # Convert state to array if it's a BodyState object
-        if hasattr(state, '__array__'):
-            state_array = np.array(state)
-        else:
-            state_array = state
 
-        x, y, z, theta, _, _, _, _ = state_array
+
 
         # Reset and transform hovercraft
         self.hovercraft.vertices = self.o3d.utility.Vector3dVector(self.hovercraft_original_vertices)
-        self.hovercraft.translate([x, y, z], relative=False)
+        self.hovercraft.translate(state.r, relative=False)
 
-        R = self.o3d.geometry.get_rotation_matrix_from_axis_angle([0, 0, theta])
-        self.hovercraft.rotate(R, center=[x, y, z])
+        R = self.o3d.geometry.get_rotation_matrix_from_axis_angle([0, 0, state.theta])
+        self.hovercraft.rotate(R, center=state.r)
 
         self.vis.update_geometry(self.hovercraft)
         self.vis.poll_events()

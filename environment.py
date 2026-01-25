@@ -1,10 +1,16 @@
 import numpy as np
 from physics import PhysicsEngine, HovercraftPhysics
-from visualization import Visualizer, Open3DVisualizer, NullVisualizer
 from body import Body, Hovercraft
 from state import BodyState
+from components import Environment, SimulationComponent
+from simulation_outputs import SimulationOutput
+from typing import (
+    List, Optional,
+    Dict, Tuple, Any,
 
-class HovercraftEnv:
+)
+
+class HovercraftEnv(Environment):
     """
     Environment containing physical bodies with proper separation of concerns.
 
@@ -12,12 +18,10 @@ class HovercraftEnv:
     - Contains Body objects (not just state)
     - Manages body interactions and environmental conditions
     - Delegates physics calculations to PhysicsEngine
-    - Handles visualization of bodies
     """
 
     def __init__(self,
                  physics_engine: PhysicsEngine = None,
-                 visualizer: Visualizer = None,
                  config: dict = None,
                  bodies: list[Body] = None):
         """
@@ -25,16 +29,15 @@ class HovercraftEnv:
 
         Args:
             physics_engine: Physics simulation component
-            visualizer: Visualization component
             config: Environment configuration
             bodies: List of bodies in the environment (default: single hovercraft)
         """
+        super(HovercraftEnv, self).__init__()
         self.config = config or self._default_config()
         self.dt = self.config.get('dt', 0.01)
 
         # Dependency injection with defaults
         self.physics = physics_engine or HovercraftPhysics(self.config)
-        self.visualizer = visualizer
 
         # Initialize bodies
         if bodies is None:
@@ -51,11 +54,7 @@ class HovercraftEnv:
             self.bodies = [Hovercraft(**hovercraft_config)]
         else:
             self.bodies = bodies
-
-        # Lazy initialization of visualizer
-        if self.visualizer is None:
-            self.visualizer = self._create_default_visualizer()
-
+    
     def _default_config(self) -> dict:
         """Default environment configuration."""
         return {
@@ -68,20 +67,8 @@ class HovercraftEnv:
             'rot_mean': 0.1,
             'rot_std': 0.5,
             'friction_k': 0.1,
-            'bounds': [[-5, 5], [-5, 5], [0, 10]],
-            'visualization': True
+            'bounds': [[-5, 5], [-5, 5], [0, 10]]
         }
-
-    def _create_default_visualizer(self) -> Visualizer:
-        """Create default visualizer based on config."""
-        if self.config.get('visualization', True):
-            try:
-                return Open3DVisualizer(self.physics.get_bounds())
-            except ImportError:
-                print("Open3D not available, using null visualizer")
-                return NullVisualizer(self.physics.get_bounds())
-        else:
-            return NullVisualizer(self.physics.get_bounds())
 
     def step(self, action: np.ndarray) -> BodyState:
         """
@@ -100,7 +87,6 @@ class HovercraftEnv:
             # Single body case (backward compatibility)
             new_state = self.physics.step(self.bodies[0], action, self.dt)
             self.bodies[0].set_state(new_state)
-            self.visualizer.update(np.array(new_state))
             return new_state
         else:
             # Multi-body case - delegate to step_multiple
@@ -126,27 +112,13 @@ class HovercraftEnv:
         for body, new_state in zip(self.bodies, new_states):
             body.set_state(new_state)
 
-        # Update visualization (for now, just use first body state for compatibility)
-        if new_states:
-            self.visualizer.update(np.array(new_states[0]))
-
         return new_states
 
-    def render(self):
-        """Render current state."""
-        self.visualizer.render()
-
-    def close(self):
-        """Clean up resources."""
-        self.visualizer.close()
 
     def reset(self) -> BodyState:
         """Reset environment to initial state."""
         for body in self.bodies:
             body.reset()
-        # Update visualization with primary body state
-        if self.bodies:
-            self.visualizer.update(np.array(self.bodies[0].get_state()))
         return self.bodies[0].get_state() if self.bodies else BodyState()
 
     # Convenience properties for primary body access (backward compatibility)
@@ -196,7 +168,6 @@ class HovercraftEnv:
         loaded_state = BodyState.load(filepath)
         if self.bodies:
             self.bodies[0].set_state(loaded_state)
-        self.visualizer.update(np.array(loaded_state))
         return loaded_state
 
     def get_state_dict(self) -> dict:
@@ -208,7 +179,6 @@ class HovercraftEnv:
         new_state = BodyState.from_dict(state_dict)
         if self.bodies:
             self.bodies[0].set_state(new_state)
-        self.visualizer.update(np.array(new_state))
 
     def add_body(self, body: Body) -> None:
         """Add a body to the environment."""
@@ -223,6 +193,29 @@ class HovercraftEnv:
         """Get all bodies in the environment."""
         return self.bodies.copy()
 
-    def capture_frame(self, filename: str) -> None:
-        """Capture current visualization frame."""
-        self.visualizer.capture_frame(filename)
+
+    def run_simulation(self, control_source, outputs: list, steps: int, initial_pos=None):
+        """Run simulation with control source and multiple outputs."""
+        # Set initial position if provided
+        if initial_pos:
+            import numpy as np
+            self.state.r = np.array(initial_pos)
+            self.state.v = np.zeros(3)
+            self.state.theta = self.state.omega = 0.0
+            self.state.clear_events()
+
+        # Initialize all outputs
+        for output in outputs:
+            output.initialize()
+
+        # Run simulation steps
+        for step in range(steps):
+            control_input = control_source.get_control(step)
+            self.step(control_input)
+            
+            for output in outputs:
+                output.process_step(step, control_input)
+
+        # Finalize all outputs
+        for output in outputs:
+            output.finalize()

@@ -32,11 +32,9 @@ class DemoRunner:
     def __init__(self, physics_config: Optional[dict] = None):
         self.physics_config = physics_config or {}
 
-    def create_environment(self, visualizer: Optional[Visualizer] = None) -> HovercraftEnv:
-        """Create environment with specified visualizer."""
-        if visualizer is None:
-            visualizer = NullVisualizer({})
-        return HovercraftEnv(visualizer=visualizer)
+    def create_environment(self) -> HovercraftEnv:
+        """Create environment."""
+        return HovercraftEnv()
 
     def run_test(self, control_source: ControlSource, steps: int = 50, initial_pos: tuple = None) -> None:
         """Run physics test with logging output."""
@@ -52,28 +50,29 @@ class DemoRunner:
             env.state.clear_events()
         
         output = LoggingSimulationOutput(env)
-        output.run_simulation(control_source, steps)
+        env.run_simulation(control_source, steps)
         env.close()
 
     def run_visualization(self, control_source: ControlSource, steps: int = 200, initial_pos: tuple = None) -> None:
         """Run demo with live visualization."""
         # Create environment with Open3D visualizer
         bounds = self.physics_config.get('bounds', [[-5, 5], [-5, 5], [0, 10]])
+        bounds_dict = {
+            'x': (bounds[0][0], bounds[0][1]),
+            'y': (bounds[1][0], bounds[1][1]),
+            'z': (bounds[2][0], bounds[2][1])
+        }
+
+        env = HovercraftEnv(visualizer=visualizer)
+        env.bounds = bounds_dict
+
         try:
             from visualization import Open3DVisualizer
-            # Convert bounds list to dict format expected by visualizer
-            bounds_dict = {
-                'x': (bounds[0][0], bounds[0][1]),
-                'y': (bounds[1][0], bounds[1][1]),
-                'z': (bounds[2][0], bounds[2][1])
-            }
-            visualizer = Open3DVisualizer(bounds_dict)
+            visualizer = Open3DVisualizer(env)
         except (ImportError, Exception) as e:
             print(f"Open3D visualizer not available ({e}), cannot run live visualization")
             return
 
-        env = HovercraftEnv(visualizer=visualizer)
-        
         # Set initial position if provided
         if initial_pos is not None:
             import numpy as np
