@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, Tuple
 import numpy as np
 from state import BodyState
 
-
+# SRC: https://stackoverflow.com/q/60104854
 class Body(ABC):
     """Abstract base class for physical bodies with mass, shape, and dynamics."""
 
