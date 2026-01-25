@@ -32,11 +32,12 @@ def run(controls, outputs, start_x, start_y, start_z):
     # Create outputs (they register themselves with the environment)
     output_instances = [create_output(oc['type'], oc['params'], env) for oc in output_configs]
     
+    body_id = env.bodies[0].id
     for config in control_configs:
-        control = create_control(config['type'], config['params'])
+        control = create_control(config['type'], config['params'], body_id)
         # Use environment's run_simulation method
         print(f"Running simulation with {config['steps']} steps")
-        env.run_simulation(control, config['steps'], initial_pos)
+        env.run_simulation(control, steps=config['steps'], initial_pos=initial_pos)
 
 def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
     parts = spec.split(':')
@@ -52,13 +53,13 @@ def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
                 config['params'][k] = float(v) if spec_type == 'control' and k != 'steps' else v
     return config
 
-def create_control(control_type: str, params: Dict[str, Any]):
+def create_control(control_type: str, params: Dict[str, Any], body_id: str):
     ct = control_type.lower()
-    if ct in ('hovering', 'hover'): return ControlSourceFactory.create_hovering()
-    elif ct == 'linear': return ControlSourceFactory.create_linear(params.get('force', 0.8))
-    elif ct in ('rotational', 'rotate'): return ControlSourceFactory.create_rotational(params.get('torque', 0.3))
-    elif ct in ('sinusoidal', 'sinusoid'): return ControlSourceFactory.create_sinusoidal()
-    elif ct == 'chaotic': return ControlSourceFactory.create_chaotic()
+    if ct in ('hovering', 'hover'): return ControlSourceFactory.create_hovering(body_id)
+    elif ct == 'linear': return ControlSourceFactory.create_linear(body_id, params.get('force', 0.8))
+    elif ct in ('rotational', 'rotate'): return ControlSourceFactory.create_rotational(body_id, params.get('torque', 0.3))
+    elif ct in ('sinusoidal', 'sinusoid'): return ControlSourceFactory.create_sinusoidal(body_id)
+    elif ct == 'chaotic': return ControlSourceFactory.create_chaotic(body_id)
     raise click.ClickException(f"Unknown control: {control_type}")
 
 def create_output(output_type: str, output_params: Dict[str, Any], env: Environment):
@@ -70,7 +71,9 @@ def create_output(output_type: str, output_params: Dict[str, Any], env: Environm
 
 def run_all_tests():
     click.echo("🧪 Running tests...")
-    for name, control in [("hover", ControlSourceFactory.create_hovering()), ("linear", ControlSourceFactory.create_linear(0.8)), ("rotate", ControlSourceFactory.create_rotational(0.3))]:
+    env = HovercraftEnv()
+    body_id = env.bodies[0].id
+    for name, control in [("hover", ControlSourceFactory.create_hovering(body_id)), ("linear", ControlSourceFactory.create_linear(body_id, 0.8)), ("rotate", ControlSourceFactory.create_rotational(body_id, 0.3))]:
         click.echo(f"Testing {name}...")
         runner.run_test(control, 50)
     click.echo("✅ Done!")

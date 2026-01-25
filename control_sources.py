@@ -45,6 +45,10 @@ class SignalChannel(List[Union[float, np.ndarray]]):
     def __init__(self, *args: Union[float, np.ndarray]):
         super().__init__(args)
 
+        # update the size to match the number of registered lains
+        while len(self) < len(self.lain_info):
+            self.append(None)
+
     lain_info : Dict[Tuple[str, str, str], LainInfo] = {}
 
     @classmethod
@@ -130,6 +134,8 @@ class LinearMovementControl(ControlSource):
         self.forward_force = forward_force
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        while len(channel) <= self.lain_index:
+            channel.append(None)
         channel[self.lain_index] = (self.forward_force, 0.0)
         return channel
 
@@ -140,10 +146,13 @@ class LinearMovementControl(ControlSource):
 class RotationalControl(ControlSource):
     """Generates pure rotational movement."""
 
-    def __init__(self, rotation_torque: float = 0.3):
+    def __init__(self, id: str, rotation_torque: float = 0.3):
+        super(RotationalControl, self).__init__(id=id)
         self.rotation_torque = rotation_torque
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        while len(channel) <= self.lain_index:
+            channel.append(None)
         channel[self.lain_index] = (0.0, self.rotation_torque)
         return channel
 
@@ -169,6 +178,8 @@ class SinusoidalControl(ControlSource):
         self.rotation_freq = rotation_freq
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        while len(channel) <= self.lain_index:
+            channel.append(None)
         forward = self.forward_amp * np.sin(step * self.forward_freq)
         rotation = self.rotation_amp * np.cos(step * self.rotation_freq)
         channel[self.lain_index] = (forward, rotation)
@@ -196,6 +207,8 @@ class ChaoticControl(ControlSource):
         self.rotation_freq = rotation_freq
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        while len(channel) <= self.lain_index:
+            channel.append(None)
         forward = self.forward_amp * np.sin(step * self.forward_freq)
         rotation = self.rotation_amp * np.cos(step * self.rotation_freq)
         channel[self.lain_index] = (forward, rotation)
@@ -216,6 +229,8 @@ class HoveringControl(ControlSource):
         )
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        while len(channel) <= self.lain_index:
+            channel.append(None)
         channel[self.lain_index] = 0.0
         return channel
 

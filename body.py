@@ -11,6 +11,8 @@ from state import BodyState
 class Body(ABC):
     """Abstract base class for physical bodies with mass, shape, and dynamics."""
 
+    _next_id = 0
+
     def __init__(self,
                  mass: float = 1.0,
                  moment_of_inertia: float = 0.1,
@@ -23,6 +25,8 @@ class Body(ABC):
             moment_of_inertia: Rotational inertia around z-axis
             shape: Shape description (sphere, box, etc.)
         """
+        self.id = f"body_{Body._next_id}"
+        Body._next_id += 1
         self.mass = mass
         self.moment_of_inertia = moment_of_inertia
         self.shape = shape or {'type': 'sphere', 'radius': 0.5}

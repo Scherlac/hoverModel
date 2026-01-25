@@ -3,6 +3,7 @@ from physics import PhysicsEngine, HovercraftPhysics
 from body import Body, Hovercraft
 from state import BodyState
 from components import Environment, SimulationComponent, SimulationOutput
+from control_sources import SignalChannel
 from typing import (
     List, Optional,
     Dict, Tuple, Any,
@@ -61,6 +62,8 @@ class HovercraftEnv(Environment):
             self.bodies = [Hovercraft(**hovercraft_config)]
         else:
             self.bodies = bodies
+        
+        self.state = self.bodies[0].state
     
     def _default_config(self) -> dict:
         """Default environment configuration."""
@@ -201,11 +204,12 @@ class HovercraftEnv(Environment):
         return self.bodies.copy()
 
 
-    def run_simulation(self, control_source, steps: int, initial_pos=None):
+    def run_simulation(self, control_source, outputs=None, steps=50, initial_pos=None):
         """Run simulation with control source and multiple outputs."""
+        if outputs is not None:
+            self.outputs = outputs
         # Set initial position if provided
         if initial_pos:
-            import numpy as np
             self.state.r = np.array(initial_pos)
             self.state.v = np.zeros(3)
             self.state.theta = self.state.omega = 0.0
@@ -217,7 +221,13 @@ class HovercraftEnv(Environment):
 
         # Run simulation steps
         for step in range(steps):
-            control_input = control_source.get_control(step)
+            channel = SignalChannel()
+            channel = control_source.get_control(channel, step)
+            control_input = channel[control_source.lain_index]
+            if isinstance(control_input, (tuple, list)):
+                control_input = np.array(control_input)
+            elif isinstance(control_input, (int, float)):
+                control_input = np.array([0.0, control_input])  # Assume torque or something
             self.step(control_input)
 
             # process step for all visualizers/outputs
