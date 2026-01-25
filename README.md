@@ -10,15 +10,15 @@ A simple reinforcement learning environment simulation for a hovercraft using Op
 - Mass-based Newtonian physics (F=ma, torque responses)
 - Friction proportional to elevation
 - Controlled forward thrust and rotational torque
-- 3D visualization with Open3D
-- Test suite demonstrating all physics behaviors
-- Video generation from 3D visualization (MP4 format)
+- 3D visualization with Open3D (live and video modes)
+- Video generation from 3D visualization (MP4 format) with automatic cleanup
 - **Modular demonstration system** with interchangeable control sources and output handlers
 - **Comprehensive CLI interface** for easy demonstrations and testing
 - **Separated architecture** with clear file-level separation between outputs and demos
 - **Clean state representation** with vector-based `BodyState` class (r/v vectors, theta/omega scalars)
 - **Vectorized physics** using natural mathematical objects instead of array slicing
 - All features tested and validated
+- **Automatic frame cleanup** after video generation to keep workspace clean
 
 ⚠️ **Requirements:**
 - Python >= 3.12 (for Open3D compatibility)
@@ -40,106 +40,130 @@ This installs numpy, Open3D for the physics simulation and 3D visualization, and
 
 ## Project Structure
 
-- `main.py` - Core hovercraft environment with physics simulation and Open3D visualization
-- `demo.py` - Combined testing and video generation functionality using modular architecture
-- `control_sources.py` - Control signal generators for different movement patterns
-- `simulation_outputs.py` - Output handlers for various demonstration modes (logging, video, etc.)
-- `demo_runner.py` - Demo orchestration and configuration logic
-- `physics.py` - Physics engine with abstract `PhysicsEngine` base class
-- `visualization.py` - Visualization backends with abstract `Visualizer` base class
-- `environment.py` - Main environment orchestrating physics and visualization
+- `main.py` - Legacy entry point for basic visualization
+- `demo.py` - CLI interface for running demonstrations with modular control and output systems
+- `environment.py` - Main environment orchestrating physics, bodies, and visualization
 - `body.py` - Physical body representations with `Body` and `Hovercraft` classes
 - `state.py` - Clean vector-based state representation with `BodyState` class
+- `physics.py` - Physics engine with abstract `PhysicsEngine` base class and `HovercraftPhysics`
+- `visualization.py` - Visualization backends with abstract `Visualizer` base class
+- `control_sources.py` - Control signal generators for different movement patterns
+- `simulation_outputs.py` - Output handlers for various demonstration modes (logging, video, live visualization)
+- `components.py` - Abstract base classes and interfaces
 - `pyproject.toml` - Project configuration and dependencies
 - `README.md` - This documentation file
 
 ## Usage
 
 ### Quick Start
-Run all physics tests to see the hovercraft behaviors:
+Run physics tests with console output:
 ```bash
-python demo.py
+python demo.py run --control linear:force=1.0:steps=50 --output console
 ```
 
 ### Individual Demonstrations
 Test specific movement patterns:
 ```bash
-python demo.py hover              # Test hovering (no control inputs)
-python demo.py linear             # Test forward movement
-python demo.py rotate             # Test rotational movement
-python demo.py sinusoid           # Test combined sinusoidal motion
-python demo.py chaotic            # Test boundary bouncing behavior
+# Linear movement with console output
+python demo.py run --control linear:force=2.0:steps=100 --output console
+
+# Rotational movement
+python demo.py run --control rotational:torque=0.5:steps=100 --output console
+
+# Sinusoidal combined motion
+python demo.py run --control sinusoidal:steps=100 --output console
+
+# Chaotic boundary testing
+python demo.py run --control chaotic:steps=150 --output console
 ```
 
 ### Video Creation
-Create demonstration videos:
+Create demonstration videos (frames automatically cleaned up after generation):
 ```bash
-python demo.py video hover        # Create hovering video
-python demo.py video linear       # Create linear movement video
-python demo.py video rotate       # Create rotational video
-python demo.py video sinusoid     # Create sinusoidal video
-python demo.py video chaotic      # Create boundary bouncing video
+# Basic linear movement video
+python demo.py run --control linear:force=5.0:steps=100 --output video:filename=linear_demo.mp4:fps=10
+
+# Bouncing boundary demo (start from center for real movement)
+python demo.py run --control linear:force=20.0:steps=100 --output video:filename=bouncing_demo.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0
+
+# Rotational video with custom settings
+python demo.py run --control rotational:torque=1.0:steps=150 --output video:filename=rotation.mp4:fps=15
+```
+
+### Live 3D Visualization
+Run interactive 3D visualization:
+```bash
+# Live visualization of linear movement
+python demo.py run --control linear:force=3.0:steps=100 --output live
+
+# Live bouncing demo
+python demo.py run --control linear:force=15.0:steps=200 --output live --start-x=0.0 --start-y=0.0 --start-z=5.0
 ```
 
 ### Advanced Options
 ```bash
-python demo.py --help             # Show all available commands and options
-python demo.py hover --steps 100  # Custom number of steps
-python demo.py linear --force 1.5 # Custom force for linear movement
-python demo.py video linear --output my_demo.mp4 --fps 30 --steps 150
+# Custom starting position
+python demo.py run --control linear:force=10.0:steps=100 --output video:filename=custom_start.mp4:fps=10 --start-x=2.0 --start-y=1.0 --start-z=3.0
+
+# Multiple controls (not yet implemented - single control per run)
+# Custom video settings
+python demo.py run --control chaotic:steps=200 --output video:filename=chaos.mp4:fps=20
+
+# Get help
+python demo.py --help
+python demo.py run --help
 ```
 
-**Options:**
-- `--steps STEPS` - Number of simulation steps (default: 50 for tests, 200 for video)
-- `--fps FPS` - Video frame rate (default: 25)
-- `--output FILE` - Output video filename (default: hovercraft_demo.mp4)
+**Control Options:**
+- `linear:force=<float>:steps=<int>` - Constant forward thrust
+- `rotational:torque=<float>:steps=<int>` - Pure rotational movement
+- `sinusoidal:steps=<int>` - Combined sinusoidal motion
+- `chaotic:steps=<int>` - Boundary testing with high-amplitude signals
+- `hovering:steps=<int>` - Zero control inputs for stability testing
 
-### 3D Visualization
-Run the interactive 3D visualization:
-```bash
-python main.py
-```
-
-This will open an Open3D 3D visualization window showing the hovercraft moving within the fenced training area.
-
-**Note:** On Windows command line, GUI windows may not be visible. The visualization works correctly for video capture and in Python IDEs/Jupyter notebooks.
+**Output Options:**
+- `console` - Text-based logging of position, velocity, and events
+- `live` - Interactive 3D Open3D visualization window
+- `video:filename=<name.mp4>:fps=<int>` - MP4 video generation with automatic cleanup
 
 ### Command Line Interface (CLI)
 The demo system features a comprehensive Click-based CLI for easy experimentation:
 
 **Available Commands:**
-- `hover` - Hovering (zero control inputs)
-- `linear` - Constant forward thrust
-- `rotate` - Pure rotational movement
-- `sinusoid` - Combined sinusoidal motion
-- `chaotic` - High-amplitude boundary testing
+- `run` - Execute simulation with specified control and output
 
-**Video Subcommands:**
-- `video hover` - Create hovering video
-- `video linear` - Create linear movement video
-- `video rotate` - Create rotational video
-- `video sinusoid` - Create sinusoidal video
-- `video chaotic` - Create boundary bouncing video
+**Control Types:**
+- `linear:force=<float>:steps=<int>` - Constant forward thrust
+- `rotational:torque=<float>:steps=<int>` - Pure rotational movement  
+- `sinusoidal:steps=<int>` - Combined sinusoidal motion
+- `chaotic:steps=<int>` - Boundary testing with high-amplitude signals
+- `hovering:steps=<int>` - Zero control inputs for stability testing
+
+**Output Types:**
+- `console` - Text-based logging output
+- `live` - Interactive 3D Open3D visualization
+- `video:filename=<file.mp4>:fps=<int>` - MP4 video generation
 
 **Common Commands:**
 ```bash
-# Run demonstrations
-python demo.py hover              # Quick hover test
-python demo.py linear --force 1.0 # Linear with custom force
-python demo.py chaotic --steps 100 # Extended chaotic test
+# Basic demonstrations
+python demo.py run --control linear:force=1.0:steps=50 --output console
+python demo.py run --control chaotic:steps=100 --output console
 
-# Create videos
-python demo.py video sinusoid     # Standard video
-python demo.py video chaotic      # Boundary bouncing video
-python demo.py video linear --output custom.mp4 --fps 30
+# Video creation with automatic cleanup
+python demo.py run --control linear:force=10.0:steps=100 --output video:filename=demo.mp4:fps=10
+python demo.py run --control chaotic:steps=150 --output video:filename=bounce.mp4:fps=15
+
+# Live 3D visualization
+python demo.py run --control sinusoidal:steps=100 --output live
+
+# Custom starting positions for boundary testing
+python demo.py run --control linear:force=20.0:steps=100 --output video:filename=bouncing.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0
 
 # Get help
 python demo.py --help
-python demo.py video --help
+python demo.py run --help
 ```
-
-# Get help
-python demo.py --help
 ```
 
 ## Architecture
@@ -156,26 +180,22 @@ The codebase follows SOLID principles with a highly composable, modular architec
   - Single source of truth for state format and operations
   - Provides semantic vector accessors and validation
 - **`physics.py`**: Physics engine with abstract `PhysicsEngine` base class
-  - `NewtonianPhysics` - General Newtonian physics for any body type
+  - `HovercraftPhysics` - General Newtonian physics for any body type
   - Multi-body physics support with interaction handling
   - Vectorized calculations for performance
-  - `HoveringControl` - Zero control signals for stability testing
+- **`control_sources.py`**: Control signal generators
+  - `ControlSourceFactory` - Factory pattern for creating control sources
   - `LinearMovementControl` - Constant forward thrust
   - `RotationalControl` - Pure rotational movement
   - `SinusoidalControl` - Combined sinusoidal motion
   - `ChaoticControl` - Boundary testing with high-amplitude signals
-  - `ControlSourceFactory` - Factory pattern for creating control sources
 - **`simulation_outputs.py`**: Output handlers with abstract `SimulationOutput` base class
-  - `NullSimulationOutput` - Silent testing mode
   - `LoggingSimulationOutput` - Console position reporting
-  - `VideoSimulationOutput` - MP4 video generation with Open3D visualization
-- **`demo_runner.py`**: Demo orchestration and configuration
-  - `DemoRunner` - Main demo orchestrator combining control sources with outputs
-  - `BouncingVideoDemo` - Specialized configuration for boundary collision videos
-- **`physics.py`**: Physics engine with abstract `PhysicsEngine` base class
+  - `LiveVisualizationOutput` - Interactive 3D Open3D display
+  - `VideoSimulationOutput` - MP4 video generation with automatic frame cleanup
 - **`visualization.py`**: Visualization backends with abstract `Visualizer` base class
 - **`environment.py`**: Main environment orchestrating physics and visualization
-- **`demo.py`**: Demonstration and testing utilities using the modular system
+- **`demo.py`**: CLI interface using the modular system
 
 ### Design Benefits
 - **High Cohesion**: Each component has a single, well-defined responsibility
@@ -221,31 +241,31 @@ The demonstration system uses composition to combine control sources with output
 **Programmatic Usage:**
 ```python
 from control_sources import ControlSourceFactory
-from demo_runner import DemoRunner
+from simulation_outputs import LoggingSimulationOutput, LiveVisualizationOutput, VideoSimulationOutput
+from environment import HovercraftEnv
+
+# Create environment
+env = HovercraftEnv()
 
 # Create control source
-control = ControlSourceFactory.create_sinusoidal()
+control = ControlSourceFactory.create_linear(force=1.0)
 
-# Create demo runner
-runner = DemoRunner()
+# Create output handler
+output = LoggingSimulationOutput(env)
 
-# Run physics test with logging
-runner.run_test(control, steps=50)
+# Run simulation
+env.run_simulation(control, steps=50)
 
-# Create video demonstration
-runner.create_video(control, "demo.mp4", steps=200, fps=25)
-
-# Create boundary bouncing video (uses bouncing=True parameter)
-chaotic_control = ControlSourceFactory.create_chaotic()
-runner.create_video(chaotic_control, "bounce.mp4", steps=300, bouncing=True)
+# For video with automatic cleanup
+video_output = VideoSimulationOutput(env, "demo.mp4", fps=10)
+env.run_simulation(control, steps=100)
 ```
 
 **CLI Usage:**
 ```bash
 # Equivalent CLI commands
-python demo.py sinusoid --steps 50
-python demo.py video sinusoid --steps 200 --fps 25 --output demo.mp4
-python demo.py video chaotic --steps 300 --output bounce.mp4
+python demo.py run --control linear:force=1.0:steps=50 --output console
+python demo.py run --control linear:force=1.0:steps=100 --output video:filename=demo.mp4:fps=10
 ```
 
 This architecture allows testing any control strategy with any output format without code duplication.
@@ -269,14 +289,10 @@ omega  # Angular velocity (scalar)
 ```
 
 **Key Features:**
-- **Vector Representation**: Natural mathematical objects (vectors, scalars) instead of flat arrays
-- **Physical Intuition**: State represents actual kinematic quantities
-- **Body Association**: States are tied to specific body instances
-- **Encapsulation**: State operations are centralized in one class
-- **Validation**: Automatic validation of state values
-- **Persistence**: Load/save state to/from JSON files
-- **Backward Compatibility**: `__array__()` method for existing visualization code
-- **Type Safety**: Clear interfaces for state operations
+- **Automatic Frame Cleanup**: Video generation automatically removes temporary frame files after successful encoding, keeping the workspace clean
+- **Flexible Starting Positions**: Custom initial positions for testing boundary interactions and bouncing behavior
+- **Real-time Event Logging**: Collision events and physics state are logged during simulation
+- **High-Performance Encoding**: FFmpeg integration for efficient MP4 video creation
 
 **Usage:**
 ```python
@@ -332,18 +348,40 @@ hovercraft.set_state(new_state)
 - Simplified Physics: Vector operations instead of array manipulation
 - **Extensibility**: Easy to add new body types (cars, airplanes, etc.) without changing physics
 
+### Latest Improvements (2026)
+**CLI Interface Refinement:**
+- **Unified Command Structure**: Single `run` command with `--control` and `--output` options
+- **Flexible Control Specification**: Control types specified as `type:param=value:param=value` format
+- **Modular Output System**: Console, live visualization, and video outputs with consistent interface
+- **Custom Starting Positions**: `--start-x`, `--start-y`, `--start-z` options for boundary testing
+
+**Video Generation Enhancements:**
+- **Automatic Frame Cleanup**: Temporary frame directories are automatically removed after successful video encoding
+- **Improved Error Handling**: Failed video generation preserves frames for debugging
+- **Workspace Management**: Clean workspace with no leftover temporary files
+- **Performance**: Efficient FFmpeg integration with optimized encoding settings
+
+**Bouncing Demo Capabilities:**
+- **Real Movement Visualization**: Start from boundary center (z=5.0) to demonstrate actual collision and bounce
+- **Linear Movement**: Strong force application (force=20.0) for visible acceleration and boundary impact
+- **Collision Detection**: Event logging for boundary collisions with position tracking
+- **Video Documentation**: MP4 output showing complete bouncing physics cycle
+
 ### Usage Examples
 
 **CLI Commands:**
 ```bash
 # Quick demonstrations
-python demo.py hover              # Test stability
-python demo.py linear             # Test forward movement
-python demo.py chaotic            # Test boundary interactions
+python demo.py run --control hovering:steps=50 --output console    # Test stability
+python demo.py run --control linear:force=2.0:steps=100 --output console  # Test forward movement
+python demo.py run --control chaotic:steps=150 --output console    # Test boundary interactions
 
-# Video creation
-python demo.py video sinusoid     # Create smooth motion video
-python demo.py video chaotic      # Create dynamic bouncing video
+# Video creation with automatic frame cleanup
+python demo.py run --control sinusoidal:steps=100 --output video:filename=smooth.mp4:fps=10
+python demo.py run --control chaotic:steps=200 --output video:filename=bounce.mp4:fps=15
+
+# Live 3D visualization
+python demo.py run --control linear:force=5.0:steps=100 --output live
 ```
 
 **Programmatic API:**
@@ -352,9 +390,9 @@ python demo.py video chaotic      # Create dynamic bouncing video
 env = HovercraftEnv()
 
 # Custom physics with null visualization (for testing)
-from physics import NewtonianPhysics
+from physics import HovercraftPhysics
 from visualization import NullVisualizer
-physics = NewtonianPhysics({'mass': 2.0})
+physics = HovercraftPhysics({'mass': 2.0})
 env = HovercraftEnv(physics_engine=physics, visualizer=NullVisualizer({}))
 
 # Body-based configuration
@@ -381,29 +419,21 @@ env.body.set_state(new_state)
 
 # Modular demo system - combine any control source with any output
 from control_sources import ControlSourceFactory
-from demo_runner import DemoRunner
+from simulation_outputs import VideoSimulationOutput
 
-runner = DemoRunner()
-
-# Test different movement patterns
-hovering = ControlSourceFactory.create_hovering()
-runner.run_test(hovering, steps=50)
-
-linear = ControlSourceFactory.create_linear(forward_force=1.0)
-runner.run_test(linear, steps=50)
-
-chaotic = ControlSourceFactory.create_chaotic()
-runner.create_video(chaotic, "boundary_test.mp4", steps=300, bouncing=True)
+control = ControlSourceFactory.create_linear(force=10.0)
+video_output = VideoSimulationOutput(env, "boundary_test.mp4", fps=10)
+env.run_simulation(control, steps=100)
 
 # Vector gravity (e.g., simulating wind effects)
-wind_physics = NewtonianPhysics({
+wind_physics = HovercraftPhysics({
     'gravity': [0.5, 0.0, -9.81],  # [x, y, z] gravity vector
     'bounds': [[-10, 10], [-10, 10], [0, 15]]  # [[x_min, x_max], [y_min, y_max], [z_min, z_max]]
 })
 env = HovercraftEnv(physics_engine=wind_physics)
 
 # Compact bounds configuration
-compact_physics = NewtonianPhysics({
+compact_physics = HovercraftPhysics({
     'bounds': [[-5, 5], [-5, 5], [0, 10]]  # Clean array format
 })
 ```
