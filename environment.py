@@ -2,8 +2,7 @@ import numpy as np
 from physics import PhysicsEngine, HovercraftPhysics
 from body import Body, Hovercraft
 from state import BodyState
-from components import Environment, SimulationComponent
-from simulation_outputs import SimulationOutput
+from components import Environment, SimulationComponent, SimulationOutput
 from typing import (
     List, Optional,
     Dict, Tuple, Any,
@@ -219,3 +218,12 @@ class HovercraftEnv(Environment):
         # Finalize all outputs
         for output in outputs:
             output.finalize()
+
+    def get_config(self) -> Dict[str, Any]:
+        """Get environment configuration."""
+        return self.config
+
+    def close(self):
+        """Clean up all registered visualizers."""
+        for visualizer in self.visualizers:
+            visualizer.close()

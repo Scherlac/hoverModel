@@ -8,16 +8,13 @@ import numpy as np
 import time
 import os
 from typing import Optional, Tuple
-from environment import HovercraftEnv
-from physics import HovercraftPhysics
-from components import Environment, SimulationComponent
-from visualization import NullVisualizer, Visualizer
+from components import Environment, SimulationComponent, SimulationOutput
+from visualization import NullVisualizer, Visualizer, Open3DVisualizer
 from control_sources import ControlSource
-import open3d.visualization.
 
 
 
-class NullSimulationOutput(SimulationComponent):
+class NullSimulationOutput(SimulationOutput):
     """Null output for testing - no visualization or logging."""
 
     def initialize(self) -> None:
@@ -30,10 +27,10 @@ class NullSimulationOutput(SimulationComponent):
         pass
 
 
-class LoggingSimulationOutput(SimulationComponent):
+class LoggingSimulationOutput(SimulationOutput):
     """Logging output for physics testing with detailed state reports."""
 
-    def __init__(self, env: HovercraftEnv, log_interval: int = 10):
+    def __init__(self, env: Environment, log_interval: int = 10):
         super().__init__(env)
         self.log_interval = log_interval
 
@@ -64,34 +61,30 @@ class LoggingSimulationOutput(SimulationComponent):
         print("✅ Simulation completed.")
 
 
-class VideoSimulationOutput(SimulationComponent):
+class VideoSimulationOutput(SimulationOutput):
     """Video output with Open3D visualization and frame capture."""
 
-    def __init__(
-            self, 
-            env: HovercraftEnv, 
-            video_name: str, fps: int = 25,
-            visualizer: Optional[o3d.o3d
-            camera_index: int = 0
-            ):
+    def __init__(self, env: Environment, video_name: str, fps: int = 25):
         super().__init__(env)
         self.video_name = video_name
         self.fps = fps
         self.frames_dir = "frames"
         self.frame_count = 0
-        self.visualizer = None
-        self.camera_index = None
-        self.ctr : 
-        if visualizer:
-            self.visualizer = visualizer
-            self.camera_index = camera_index
-            self.ctr = visualizer.get_camera_control(camera_index)
+        
+        # Create and register visualizer
+        bounds = env.bounds if hasattr(env, 'bounds') else {'x': (-5, 5), 'y': (-5, 5), 'z': (0, 10)}
+        try:
+            self.visualizer = Open3DVisualizer(bounds)
+            env.register_visualizer(self.visualizer)
+        except:
+            self.visualizer = NullVisualizer(bounds)
+            env.register_visualizer(self.visualizer)
 
 
     def initialize(self) -> None:
         # Camera setup
-        if self.ctr:
-            ctr = self.ctr
+        if hasattr(self.visualizer, 'vis'):
+            ctr = self.visualizer.vis.get_view_control()
             ctr.set_zoom(0.8)
             ctr.set_front([0.7, 0.3, 0.5])
             ctr.set_lookat([0, 0, 1])
@@ -113,7 +106,7 @@ class VideoSimulationOutput(SimulationComponent):
             frame_path = f"{self.frames_dir}/frame_{self.frame_count:04d}.png"
             print(f"Capturing frame {self.frame_count} at step {step}: {frame_path}")
             try:
-                self.env.capture_frame(frame_path)
+                self.visualizer.capture_frame(frame_path)
                 self.frame_count += 1
                 print(f"✅ Frame {self.frame_count-1} captured successfully: {os.path.exists(frame_path)}")
             except Exception as e:
@@ -145,16 +138,19 @@ class VideoSimulationOutput(SimulationComponent):
             print(f"📁 Frames saved in '{self.frames_dir}' directory for debugging")
 
 
-class LiveVisualizationOutput(SimulationComponent):
+class LiveVisualizationOutput(SimulationOutput):
     """Live visualization output with interactive Open3D display."""
 
-    def __init__(
-            self, 
-            env: HovercraftEnv,
-            visualizer: Optional[Visualizer] = None
-            ):
+    def __init__(self, env: Environment):
         super().__init__(env)
-        self.visualizer = visualizer
+        # Create and register visualizer
+        bounds = env.bounds if hasattr(env, 'bounds') else {'x': (-5, 5), 'y': (-5, 5), 'z': (0, 10)}
+        try:
+            self.visualizer = Open3DVisualizer(bounds)
+            env.register_visualizer(self.visualizer)
+        except:
+            self.visualizer = NullVisualizer(bounds)
+            env.register_visualizer(self.visualizer)
 
     def initialize(self) -> None:
         print("🎮 Starting live visualization...")
@@ -182,4 +178,5 @@ class LiveVisualizationOutput(SimulationComponent):
 
     def finalize(self) -> None:
         print("✅ Live visualization completed")
-        self.env.visualizer.close()
+        if self.visualizer:
+            self.visualizer.close()

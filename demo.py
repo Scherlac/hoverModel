@@ -26,13 +26,16 @@ def run(controls, outputs, start_x, start_y, start_z):
     
     click.echo(f"🚀 Running {len(control_configs)} control(s), {len(output_configs)} output(s)")
     
-    # Create single shared environment for all outputs
-    shared_env = _create_shared_env()
+    # Create environment first
+    shared_env = HovercraftEnv()
+    
+    # Create outputs (they register themselves with the environment)
+    output_instances = [create_output(oc['type'], oc['params'], shared_env) for oc in output_configs]
     
     for config in control_configs:
         control = create_control(config['type'], config['params'])
-        output_instances = [create_output(oc['type'], oc['params'], shared_env) for oc in output_configs]
-        run_simulation(control, output_instances, config['steps'], initial_pos)
+        # Use environment's run_simulation method
+        shared_env.run_simulation(control, output_instances, config['steps'], initial_pos)
 
 def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
     parts = spec.split(':')
@@ -63,40 +66,6 @@ def create_output(output_type: str, output_params: Dict[str, Any], env: Environm
     elif ot in ('live', 'visualization'): return LiveVisualizationOutput(env)
     elif ot == 'video': return VideoSimulationOutput(env, output_params.get('filename', 'demo.mp4'), int(output_params.get('fps', 25)))
     raise click.ClickException(f"Unknown output: {output_type}")
-
-def _create_shared_env():
-    bounds = runner.physics_config.get('bounds', [[-5, 5], [-5, 5], [0, 10]])
-    try:
-        from visualization import Open3DVisualizer
-        return HovercraftEnv(visualizer=Open3DVisualizer({'x': (bounds[0][0], bounds[0][1]), 'y': (bounds[1][0], bounds[1][1]), 'z': (bounds[2][0], bounds[2][1])}))
-    except:
-        from visualization import NullVisualizer
-        return HovercraftEnv(visualizer=NullVisualizer(bounds))
-
-def run_simulation(control, outputs: List, steps: int, initial_pos):
-    if not outputs: return
-    
-    # All outputs share the same environment
-    shared_env = outputs[0].env
-    
-    if initial_pos:
-        import numpy as np
-        shared_env.state.r = np.array(initial_pos)
-        shared_env.state.v = np.zeros(3)
-        shared_env.state.theta = shared_env.state.omega = 0.0
-        shared_env.state.clear_events()
-    
-    for output in outputs: output.initialize()
-    
-    for step in range(steps):
-        control_input = control.get_control(step)
-        shared_env.step(control_input)
-        
-        for output in outputs: output.process_step(step, control_input)
-    
-    for output in outputs: 
-        output.finalize()
-        if hasattr(shared_env, 'close'): shared_env.close()
 
 def run_all_tests():
     click.echo("🧪 Running tests...")

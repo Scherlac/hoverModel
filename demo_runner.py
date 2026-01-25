@@ -12,8 +12,8 @@ State vector format (8 elements):
 
 from typing import Optional, Tuple
 import numpy as np
+from components import SimulationOutput
 from simulation_outputs import (
-    SimulationOutput,
     LoggingSimulationOutput,
     VideoSimulationOutput,
     LiveVisualizationOutput,
@@ -50,7 +50,7 @@ class DemoRunner:
             env.state.clear_events()
         
         output = LoggingSimulationOutput(env)
-        env.run_simulation(control_source, steps)
+        env.run_simulation(control_source, [output], steps)
         env.close()
 
     def run_visualization(self, control_source: ControlSource, steps: int = 200, initial_pos: tuple = None) -> None:
@@ -85,7 +85,7 @@ class DemoRunner:
         output = LiveVisualizationOutput(env)
 
         try:
-            output.run_simulation(control_source, steps)
+            env.run_simulation(control_source, [output], steps, initial_pos)
         except KeyboardInterrupt:
             print("Visualization interrupted by user")
         finally:
@@ -117,7 +117,7 @@ class DemoRunner:
         else:
             output = VideoSimulationOutput(env, video_name, fps)
 
-        output.run_simulation(control_source, steps)
+        env.run_simulation(control_source, [output], steps)
         env.close()
 
 
