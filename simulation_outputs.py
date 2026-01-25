@@ -8,7 +8,7 @@ import numpy as np
 import time
 import os
 from typing import Optional, Tuple
-from components import Environment, SimulationComponent, SimulationOutput, NullVisualizer, VisualizationOutput
+from components import Environment, SimulationComponent, SimulationOutput, NullVisualizer
 from visualization import Visualizer, Open3DVisualizer, Open3DVisualizationOutput
 from control_sources import ControlSource
 
@@ -163,7 +163,7 @@ class LiveVisualizationOutput(SimulationOutput):
 
         # Update visualization
         if self.visualization_output:
-            self.visualization_output.render()
+            self.visualization_output.render_frame()
 
         # Small delay for smooth visualization
         time.sleep(0.05)

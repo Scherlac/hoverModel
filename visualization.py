@@ -37,7 +37,7 @@ class Open3DVisualizationOutput(VisualizationOutput):
         self.zoom = zoom
         self._set_camera()
 
-    def render(self) -> None:
+    def render_frame(self) -> None:
         self.visualizer.render()
 
     def capture_frame(self, filename: str) -> None:

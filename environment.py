@@ -35,6 +35,14 @@ class HovercraftEnv(Environment):
         self.config = config or self._default_config()
         self.dt = self.config.get('dt', 0.01)
 
+        # Set bounds from config
+        bounds_list = self.config.get('bounds', [[-5, 5], [-5, 5], [0, 10]])
+        self.bounds = {
+            'x': tuple(bounds_list[0]),
+            'y': tuple(bounds_list[1]),
+            'z': tuple(bounds_list[2])
+        }
+
         # Dependency injection with defaults
         self.physics = physics_engine or HovercraftPhysics(self.config)
 

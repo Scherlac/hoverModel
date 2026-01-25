@@ -99,6 +99,9 @@ class Visualizer(SimulationComponent):
 class NullVisualizationOutput(VisualizationOutput):
     """No-op visualization output."""
 
+    def __init__(self, visualizer: "Visualizer"):
+        super(NullVisualizationOutput, self).__init__(visualizer)
+
     def set_camera(self, position: Tuple[float, float, float], look_at: Tuple[float, float, float]) -> None:
         pass
 
@@ -118,7 +121,7 @@ class NullVisualizer(Visualizer):
         pass
 
     def get_visualization_output(self) -> VisualizationOutput:
-        return NullVisualizationOutput()
+        return NullVisualizationOutput(self)
 
     def close(self):
         pass
