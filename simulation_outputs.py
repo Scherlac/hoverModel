@@ -123,11 +123,16 @@ class VideoSimulationOutput(SimulationOutput):
         except Exception as e:
             print(f"❌ FFmpeg error: {e}")
 
-        # Cleanup - keep frames for debugging
+        # Cleanup frames directory
         import shutil
-        if success:
-            print(f"✅ Video created successfully: {self.video_name}")
-        print(f"📁 Frames saved in '{self.frames_dir}' directory for debugging")
+        if success and os.path.exists(self.frames_dir):
+            try:
+                shutil.rmtree(self.frames_dir)
+                print(f"🗑️  Frames directory '{self.frames_dir}' cleaned up")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not remove frames directory: {e}")
+        elif not success:
+            print(f"📁 Frames saved in '{self.frames_dir}' directory for debugging (video creation failed)")
 
 
 class LiveVisualizationOutput(SimulationOutput):
