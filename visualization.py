@@ -77,11 +77,10 @@ class Open3DVisualizer(Visualizer):
         else:
             print(f"Falling back to default hovercraft geometry (cylinder)")
             self.hovercraft = self.o3d.geometry.TriangleMesh.create_cylinder(radius=1.0, height=0.5)
-        
-        self.hovercraft.compute_vertex_normals()
         self.hovercraft.paint_uniform_color([0, 0.5, 1])
         self.vis.add_geometry(self.hovercraft)
         self.hovercraft_original_vertices = np.asarray(self.hovercraft.vertices).copy()
+        self.hovercraft_center = self.hovercraft.get_center()
 
         # Set default camera view
         self._setup_camera()
@@ -127,10 +126,12 @@ class Open3DVisualizer(Visualizer):
 
         # Reset and transform hovercraft
         self.hovercraft.vertices = self.o3d.utility.Vector3dVector(self.hovercraft_original_vertices)
+        R = self.o3d.geometry.get_rotation_matrix_from_axis_angle([0, 0, 0.1*state.theta])
+        # R = self.o3d.geometry.get_rotation_matrix_from_axis_angle([0.01, 0, 0.01])
+        self.hovercraft.rotate(R, center=self.hovercraft_center)
         self.hovercraft.translate(state.r, relative=False)
+        self.hovercraft.compute_vertex_normals()
 
-        R = self.o3d.geometry.get_rotation_matrix_from_axis_angle([0, 0, state.theta])
-        self.hovercraft.rotate(R, center=state.r)
 
         self.vis.update_geometry(self.hovercraft)
         self.vis.poll_events()
