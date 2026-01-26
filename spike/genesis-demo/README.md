@@ -2,7 +2,7 @@
 
 ## Overview
 
-This demo showcases the Genesis physics simulation framework by implementing a simple sphere collision scenario. Two spheres with opposing initial velocities collide elastically, demonstrating realistic physics simulation with gravity, collision detection, and momentum conservation.
+This demo showcases the Genesis physics simulation framework by implementing a multi-entity collision scenario. Two spheres with opposing initial velocities collide elastically while a complex hoverBody mesh falls under gravity, demonstrating realistic physics simulation with gravity, collision detection, momentum conservation, and support for both primitive shapes and imported 3D models.
 
 ## Key Findings
 
@@ -24,11 +24,11 @@ This demo showcases the Genesis physics simulation framework by implementing a s
 - **Post-Build Setting**: Velocities must be set after `scene.build()`
 - **Immediate Application**: Velocities take effect immediately when set
 
-### ✅ **Collision Physics**
-- **Elastic Collisions**: Spheres bounce off each other conserving momentum
-- **Gravity**: Automatic gravity simulation (-9.81 m/s² in z-direction)
-- **Ground Plane**: Static collision surface prevents spheres from falling infinitely
-- **Real-time Updates**: Physics simulation runs at ~58 FPS
+### ✅ **Mesh Loading & Complex Geometry**
+- **OBJ File Support**: Load complex 3D models using `gs.morphs.Mesh(file="path/to/model.obj")`
+- **Automatic Processing**: Meshes are decimated, convexified, and optimized for physics
+- **Scaling & Positioning**: Support for scale, position, and orientation transforms
+- **Material Consistency**: Imported meshes use same Rigid material system as primitives
 
 ## Demo Description
 
@@ -49,12 +49,19 @@ This demo showcases the Genesis physics simulation framework by implementing a s
 3. **Separation Phase**: Spheres bounce apart with conserved momentum
 
 ### Output
-The demo provides real-time position and velocity tracking:
+The demo provides real-time position and velocity tracking for all entities:
 ```
+Material Properties Analysis:
+Sphere1 properties: {'material_type': 'Rigid', 'density': 200.0, 'mass': 0.838 kg, ...}
+Sphere2 properties: {'material_type': 'Rigid', 'density': 200.0, 'mass': 0.838 kg, ...}
+HoverBody properties: {'material_type': 'Rigid', 'density': 200.0, ...}
+
 Step 20: Sphere1(idx=1) at (0.420, 0.000, 0.273) vel=(2.000, 0.000, -2.060)
          Sphere2(idx=2) at (0.580, 0.000, 0.273) vel=(-2.000, 0.000, -2.060)
+         HoverBody(idx=3) at (-0.000, 1.000, -0.004)
 Step 30: Sphere1(idx=1) at (0.373, 0.000, 0.086) vel=(-0.326, 0.001, 0.561)
          Sphere2(idx=2) at (0.626, -0.000, 0.085) vel=(0.322, -0.001, 0.570)
+         HoverBody(idx=3) at (-0.000, 1.000, -0.000)
 ```
 
 ## Technical Implementation
@@ -74,12 +81,25 @@ plane = scene.add_entity(gs.morphs.Plane())
 sphere1 = scene.add_entity(gs.morphs.Sphere(radius=0.1))
 sphere2 = scene.add_entity(gs.morphs.Sphere(radius=0.1))
 
+# Add mesh from OBJ file
+hoverbody = scene.add_entity(
+    gs.morphs.Mesh(
+        file="assets/hoverBody_main.obj",
+        scale=0.1,
+        pos=(0.0, 1.0, 0.2)
+    )
+)
+
 # Build scene (required before setting properties)
 scene.build()
 
 # Set positions and velocities
 sphere1.set_pos((0.0, 0.0, 0.5))
 sphere1.set_dofs_velocity([2.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+
+# Analyze material properties
+props = get_entity_properties(sphere1, radius=0.1)
+print(f"Mass: {props['mass']:.3f} kg")
 
 # Run simulation
 for i in range(100):
@@ -120,35 +140,45 @@ python sphere_collision_demo.py
 
 The demo will:
 1. Initialize Genesis physics engine
-2. Create the collision scene
-3. **Analyze and display material properties** (mass, density, elasticity)
+2. Create the collision scene with spheres and imported mesh
+3. **Analyze and display material properties for all entities** (mass, density, elasticity)
 4. Open an interactive 3D viewer
 5. Run 100 simulation steps (1 second)
-6. Display real-time position/velocity data
-7. Show collision physics in action
+6. Display real-time position/velocity data for all three entities
+7. Show collision physics in action with complex geometry
 
 ### Material Properties Analysis
 
-The demo includes utility functions for material analysis:
+The demo includes utility functions for material analysis of all entity types:
 
 ```python
-# Extract material properties
-props = get_entity_properties(sphere1, radius=0.1)
-print(f"Mass: {props['mass']:.3f} kg")
-print(f"Density: {props['density']} kg/m³")
-print(f"Coupling restitution: {props['coupling_restitution']}")
+# Extract material properties for spheres (with mass calculation)
+sphere_props = get_entity_properties(sphere1, radius=0.1)
+print(f"Sphere mass: {sphere_props['mass']:.3f} kg")
+print(f"Density: {sphere_props['density']} kg/m³")
 
-# Update material properties (before scene.build())
+# Extract material properties for meshes (no mass calculation)
+mesh_props = get_entity_properties(hoverbody)
+print(f"Mesh density: {mesh_props['density']} kg/m³")
+print(f"Coupling restitution: {mesh_props['coupling_restitution']}")
+
+# Update material properties (must be done before scene.build())
 update_entity_material(sphere1, rho=500.0, coup_restitution=0.8)
 ```
+
+**Material Analysis Output:**
+- **Spheres**: Mass = 0.838 kg, Density = 200.0 kg/m³, Volume = 0.00419 m³
+- **Meshes**: Same Rigid material properties, mass calculation requires known volume
+- **Elasticity**: Coefficient of restitution ≈ 0.16 (actual collision behavior)
 
 ## Future Applications
 
 This demo establishes a foundation for:
-- **Robotics Simulation**: Testing control algorithms with realistic physics
-- **Game Development**: Physics-based gameplay mechanics
-- **Research**: Differentiable physics for machine learning applications
-- **Engineering**: Prototyping mechanical systems with collision dynamics
+- **Robotics Simulation**: Testing control algorithms with realistic physics and complex geometries
+- **Game Development**: Physics-based gameplay with imported 3D assets
+- **Research**: Differentiable physics for machine learning with real-world models
+- **Engineering**: Prototyping mechanical systems with collision dynamics and CAD imports
+- **Mixed Reality**: Combining primitive shapes with complex imported meshes
 
 ## Files
 - `sphere_collision_demo.py` - Complete working demo with collision physics
