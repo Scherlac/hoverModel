@@ -10,6 +10,64 @@ import genesis as gs
 import numpy as np
 
 
+def get_entity_properties(entity, radius=None):
+    """
+    Extract and calculate material properties for a Genesis entity.
+
+    Args:
+        entity: Genesis RigidEntity object
+        radius: Sphere radius (if applicable) for mass calculation
+
+    Returns:
+        dict: Dictionary containing material properties and calculated values
+    """
+    material = entity.material
+
+    properties = {
+        'material_type': type(material).__name__,
+        'density': float(material.rho),
+        'coupling_friction': float(material.coup_friction),
+        'coupling_restitution': float(material.coup_restitution),  # For solver coupling
+        'coupling_softness': float(material.coup_softness),
+        'friction': material.friction,
+        'gravity_compensation': float(material.gravity_compensation),
+    }
+
+    # Calculate mass if radius is provided (for spheres)
+    if radius is not None:
+        volume = (4/3) * np.pi * (radius ** 3)
+        mass = properties['density'] * volume
+        properties.update({
+            'radius': radius,
+            'volume': volume,
+            'mass': mass,
+        })
+
+    return properties
+
+
+def update_entity_material(entity, **kwargs):
+    """
+    Update material properties of a Genesis entity.
+
+    Args:
+        entity: Genesis RigidEntity object
+        **kwargs: Material properties to update (density, friction, etc.)
+
+    Note: This function should be called before scene.build() for changes to take effect.
+    """
+    material = entity.material
+
+    # Update allowed properties
+    updatable_props = ['rho', 'coup_friction', 'coup_restitution', 'coup_softness']
+    for prop, value in kwargs.items():
+        if prop in updatable_props:
+            setattr(material, prop, value)
+            print(f"Updated {prop} to {value}")
+        else:
+            print(f"Warning: {prop} is not updatable or not recognized")
+
+
 def main():
     print("Initializing Genesis...")
 
@@ -47,6 +105,24 @@ def main():
     sphere2 = scene.add_entity(
         gs.morphs.Sphere(radius=0.1),
     )
+
+    # Material Properties Analysis:
+    # - Default Rigid material: density = 200.0 kg/m³
+    # - Sphere mass: ρ × (4/3)πr³ = 200 × (4/3)π(0.1)³ ≈ 0.838 kg
+    # - Elasticity: coup_restitution = 0.0 (material property for solver coupling)
+    # - Actual collision behavior: coefficient of restitution ≈ 0.16 (partially elastic)
+    # - Note: coup_restitution affects rigid-FEM/MPM coupling, not rigid-rigid collisions
+
+    # Extract and display material properties
+    print("\nMaterial Properties Analysis:")
+    sphere1_props = get_entity_properties(sphere1, radius=0.1)
+    print(f"Sphere1 properties: {sphere1_props}")
+
+    sphere2_props = get_entity_properties(sphere2, radius=0.1)
+    print(f"Sphere2 properties: {sphere2_props}")
+
+    # Example: Update material properties (must be done before scene.build())
+    # update_entity_material(sphere1, rho=500.0, coup_restitution=0.8)
 
     print("Building scene...")
     scene.build()

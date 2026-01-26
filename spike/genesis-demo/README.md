@@ -119,10 +119,26 @@ python sphere_collision_demo.py
 The demo will:
 1. Initialize Genesis physics engine
 2. Create the collision scene
-3. Open an interactive 3D viewer
-4. Run 100 simulation steps (1 second)
-5. Display real-time position/velocity data
-6. Show collision physics in action
+3. **Analyze and display material properties** (mass, density, elasticity)
+4. Open an interactive 3D viewer
+5. Run 100 simulation steps (1 second)
+6. Display real-time position/velocity data
+7. Show collision physics in action
+
+### Material Properties Analysis
+
+The demo includes utility functions for material analysis:
+
+```python
+# Extract material properties
+props = get_entity_properties(sphere1, radius=0.1)
+print(f"Mass: {props['mass']:.3f} kg")
+print(f"Density: {props['density']} kg/m³")
+print(f"Coupling restitution: {props['coupling_restitution']}")
+
+# Update material properties (before scene.build())
+update_entity_material(sphere1, rho=500.0, coup_restitution=0.8)
+```
 
 ## Future Applications
 
