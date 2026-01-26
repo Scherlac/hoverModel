@@ -106,6 +106,15 @@ def main():
         gs.morphs.Sphere(radius=0.1),
     )
 
+    # Add hoverBody mesh from assets folder
+    hoverbody = scene.add_entity(
+        gs.morphs.Mesh(
+            file="assets/hoverBody_main.obj",
+            scale=0.1,  # Scale down the mesh
+            pos=(0.0, 1.0, 0.2),  # Position above the collision area
+        )
+    )
+
     # Material Properties Analysis:
     # - Default Rigid material: density = 200.0 kg/m³
     # - Sphere mass: ρ × (4/3)πr³ = 200 × (4/3)π(0.1)³ ≈ 0.838 kg
@@ -120,6 +129,10 @@ def main():
 
     sphere2_props = get_entity_properties(sphere2, radius=0.1)
     print(f"Sphere2 properties: {sphere2_props}")
+
+    # For mesh objects, we can't easily calculate mass without knowing the volume
+    hoverbody_props = get_entity_properties(hoverbody)
+    print(f"HoverBody properties: {hoverbody_props}")
 
     # Example: Update material properties (must be done before scene.build())
     # update_entity_material(sphere1, rho=500.0, coup_restitution=0.8)
@@ -154,10 +167,12 @@ def main():
             try:
                 pos1 = sphere1.get_pos()
                 pos2 = sphere2.get_pos()
+                pos_hover = hoverbody.get_pos()
                 vel1 = sphere1.get_dofs_velocity()
                 vel2 = sphere2.get_dofs_velocity()
                 print(f"Step {i}: Sphere1(idx={sphere1.idx}) at ({pos1[0]:.3f}, {pos1[1]:.3f}, {pos1[2]:.3f}) vel=({vel1[0]:.3f}, {vel1[1]:.3f}, {vel1[2]:.3f})")
                 print(f"         Sphere2(idx={sphere2.idx}) at ({pos2[0]:.3f}, {pos2[1]:.3f}, {pos2[2]:.3f}) vel=({vel2[0]:.3f}, {vel2[1]:.3f}, {vel2[2]:.3f})")
+                print(f"         HoverBody(idx={hoverbody.idx}) at ({pos_hover[0]:.3f}, {pos_hover[1]:.3f}, {pos_hover[2]:.3f})")
             except Exception as e:
                 print(f"Step {i}: Could not get positions - {e}")
 

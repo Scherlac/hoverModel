@@ -33,13 +33,15 @@ This demo showcases the Genesis physics simulation framework by implementing a s
 ## Demo Description
 
 ### Setup
-- **Scene**: Ground plane + two spheres (radius 0.1m)
+- **Scene**: Ground plane + two spheres (radius 0.1m) + hoverBody mesh
 - **Initial Positions**:
   - Sphere 1: (0.0, 0.0, 0.5)
   - Sphere 2: (1.0, 0.0, 0.5)
+  - HoverBody: (0.0, 1.0, 0.2) - scaled to 0.1x size
 - **Initial Velocities**:
   - Sphere 1: [2.0, 0.0, 0.0, 0.0, 0.0, 0.0] (moving right)
   - Sphere 2: [-2.0, 0.0, 0.0, 0.0, 0.0, 0.0] (moving left)
+  - HoverBody: Stationary (no initial velocity)
 
 ### Physics Behavior
 1. **Approach Phase**: Spheres move toward each other under gravity
