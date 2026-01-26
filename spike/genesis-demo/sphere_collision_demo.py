@@ -112,6 +112,7 @@ def main():
             file="assets/hoverBody_main.obj",
             scale=0.1,  # Scale down the mesh
             pos=(0.0, 1.0, 0.2),  # Position above the collision area
+            euler=(30.0, 0.0, 0.0),  # Rotate 30° around x-axis
         )
     )
 
@@ -156,6 +157,13 @@ def main():
     except Exception as e:
         print(f"Could not set velocity for sphere2: {e}")
 
+    # Set hoverBody initial angular velocity (spinning around z-axis)
+    try:
+        hoverbody.set_dofs_velocity([0.0, 0.0, 0.0, 0.0, 0.0, 2.0])  # No linear velocity, spin around z-axis
+        print("Successfully set angular velocity for hoverBody")
+    except Exception as e:
+        print(f"Could not set angular velocity for hoverBody: {e}")
+
     print("Running simulation...")
 
     # Run simulation for 100 steps (1 second at dt=0.01) - collision happens around step 25-30
@@ -168,11 +176,14 @@ def main():
                 pos1 = sphere1.get_pos()
                 pos2 = sphere2.get_pos()
                 pos_hover = hoverbody.get_pos()
+                quat_hover = hoverbody.get_quat()  # Get orientation as quaternion
                 vel1 = sphere1.get_dofs_velocity()
                 vel2 = sphere2.get_dofs_velocity()
+                vel_hover = hoverbody.get_dofs_velocity()
                 print(f"Step {i}: Sphere1(idx={sphere1.idx}) at ({pos1[0]:.3f}, {pos1[1]:.3f}, {pos1[2]:.3f}) vel=({vel1[0]:.3f}, {vel1[1]:.3f}, {vel1[2]:.3f})")
                 print(f"         Sphere2(idx={sphere2.idx}) at ({pos2[0]:.3f}, {pos2[1]:.3f}, {pos2[2]:.3f}) vel=({vel2[0]:.3f}, {vel2[1]:.3f}, {vel2[2]:.3f})")
-                print(f"         HoverBody(idx={hoverbody.idx}) at ({pos_hover[0]:.3f}, {pos_hover[1]:.3f}, {pos_hover[2]:.3f})")
+                print(f"         HoverBody(idx={hoverbody.idx}) at ({pos_hover[0]:.3f}, {pos_hover[1]:.3f}, {pos_hover[2]:.3f}) vel=({vel_hover[0]:.3f}, {vel_hover[1]:.3f}, {vel_hover[2]:.3f}, {vel_hover[3]:.3f}, {vel_hover[4]:.3f}, {vel_hover[5]:.3f})")
+                print(f"         HoverBody orientation: quat=({quat_hover[0]:.3f}, {quat_hover[1]:.3f}, {quat_hover[2]:.3f}, {quat_hover[3]:.3f})")
             except Exception as e:
                 print(f"Step {i}: Could not get positions - {e}")
 

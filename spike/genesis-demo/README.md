@@ -17,12 +17,11 @@ This demo showcases the Genesis physics simulation framework by implementing a m
 - **Rigid Body Dynamics**: Uses RigidEntity objects with morphs and materials
 - **Real-time Visualization**: Built-in OpenGL viewer with interactive controls
 
-### ✅ **Velocity Control**
-- **DOF System**: Velocities set via `set_dofs_velocity([vx, vy, vz, wx, wy, wz])`
-  - First 3 values: linear velocities (m/s)
-  - Last 3 values: angular velocities (rad/s)
-- **Post-Build Setting**: Velocities must be set after `scene.build()`
-- **Immediate Application**: Velocities take effect immediately when set
+### ✅ **Angular Momentum & Rotational Dynamics**
+- **Initial Rotation**: Support for Euler angle initialization (`euler=(30.0, 0.0, 0.0)`)
+- **Angular Velocity**: Full 3D rotational motion via DOF velocities [wx, wy, wz]
+- **Quaternion Tracking**: Real-time orientation monitoring with `get_quat()`
+- **Complex Rotations**: Combined linear and angular motion for realistic dynamics
 
 ### ✅ **Mesh Loading & Complex Geometry**
 - **OBJ File Support**: Load complex 3D models using `gs.morphs.Mesh(file="path/to/model.obj")`
@@ -37,11 +36,11 @@ This demo showcases the Genesis physics simulation framework by implementing a m
 - **Initial Positions**:
   - Sphere 1: (0.0, 0.0, 0.5)
   - Sphere 2: (1.0, 0.0, 0.5)
-  - HoverBody: (0.0, 1.0, 0.2) - scaled to 0.1x size
+- **HoverBody**: (0.0, 1.0, 0.2) - scaled to 0.1x size, rotated 30° on x-axis
 - **Initial Velocities**:
   - Sphere 1: [2.0, 0.0, 0.0, 0.0, 0.0, 0.0] (moving right)
   - Sphere 2: [-2.0, 0.0, 0.0, 0.0, 0.0, 0.0] (moving left)
-  - HoverBody: Stationary (no initial velocity)
+  - HoverBody: [0.0, 0.0, 0.0, 0.0, 0.0, 2.0] (spinning around z-axis)
 
 ### Physics Behavior
 1. **Approach Phase**: Spheres move toward each other under gravity
@@ -58,10 +57,12 @@ HoverBody properties: {'material_type': 'Rigid', 'density': 200.0, ...}
 
 Step 20: Sphere1(idx=1) at (0.420, 0.000, 0.273) vel=(2.000, 0.000, -2.060)
          Sphere2(idx=2) at (0.580, 0.000, 0.273) vel=(-2.000, 0.000, -2.060)
-         HoverBody(idx=3) at (-0.000, 1.000, -0.004)
+         HoverBody(idx=3) at (-0.011, 1.024, 0.027) vel=(-0.160, 0.318, -1.088, -7.285, 4.458, -0.362)
+         HoverBody orientation: quat=(0.979, 0.048, 0.071, 0.183)
 Step 30: Sphere1(idx=1) at (0.373, 0.000, 0.086) vel=(-0.326, 0.001, 0.561)
          Sphere2(idx=2) at (0.626, -0.000, 0.085) vel=(0.322, -0.001, 0.570)
-         HoverBody(idx=3) at (-0.000, 1.000, -0.000)
+         HoverBody(idx=3) at (-0.015, 1.028, 0.017) vel=(-0.093, -0.012, 0.150, 1.282, 1.965, 0.472)
+         HoverBody orientation: quat=(0.978, 0.049, -0.042, 0.198)
 ```
 
 ## Technical Implementation
@@ -81,12 +82,13 @@ plane = scene.add_entity(gs.morphs.Plane())
 sphere1 = scene.add_entity(gs.morphs.Sphere(radius=0.1))
 sphere2 = scene.add_entity(gs.morphs.Sphere(radius=0.1))
 
-# Add mesh from OBJ file
+# Add mesh from OBJ file with initial rotation
 hoverbody = scene.add_entity(
     gs.morphs.Mesh(
         file="assets/hoverBody_main.obj",
         scale=0.1,
-        pos=(0.0, 1.0, 0.2)
+        pos=(0.0, 1.0, 0.2),
+        euler=(30.0, 0.0, 0.0)  # 30° rotation around x-axis
     )
 )
 
@@ -97,9 +99,12 @@ scene.build()
 sphere1.set_pos((0.0, 0.0, 0.5))
 sphere1.set_dofs_velocity([2.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-# Analyze material properties
+# Set angular velocity for rotational motion
+hoverbody.set_dofs_velocity([0.0, 0.0, 0.0, 0.0, 0.0, 2.0])  # Spin around z-axis
+
+# Analyze material properties and track orientation
 props = get_entity_properties(sphere1, radius=0.1)
-print(f"Mass: {props['mass']:.3f} kg")
+quat = hoverbody.get_quat()  # Get current orientation
 
 # Run simulation
 for i in range(100):
