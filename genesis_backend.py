@@ -182,6 +182,75 @@ class GenesisRigidBody(Body):
             'z': (0.0, 10.0)
         }
 
+    def apply_force(self, force: np.ndarray) -> None:
+        """Apply a force vector to the Genesis body."""
+        self.control_force = force
+
+    def apply_torque(self, torque: np.ndarray) -> None:
+        """Apply a torque vector to the Genesis body."""
+        self.control_torque = torque
+
+    def apply_angular_momentum(self, angular_momentum: np.ndarray) -> None:
+        """Apply angular momentum to the Genesis body."""
+        # Convert angular momentum to torque: τ = dL/dt
+        # For simplicity, apply as direct torque
+        self.control_torque = angular_momentum
+
+    def set_position_target(self, target_position: np.ndarray) -> None:
+        """Set position control target."""
+        self.position_target = target_position
+
+    def set_velocity_target(self, target_velocity: np.ndarray) -> None:
+        """Set velocity control target."""
+        self.velocity_target = target_velocity
+
+    def apply_control(self, control_kind: str, control_value: Any) -> None:
+        """
+        Apply a control of the specified kind to the Genesis body.
+
+        Args:
+            control_kind: Type of control ('force', 'torque', 'angular_momentum', 'position', 'velocity')
+            control_value: Value for the control
+        """
+        if control_kind == 'force':
+            self.apply_force(np.array(control_value))
+        elif control_kind == 'torque':
+            self.apply_torque(np.array(control_value))
+        elif control_kind == 'angular_momentum':
+            self.apply_angular_momentum(np.array(control_value))
+        elif control_kind == 'position':
+            self.set_position_target(np.array(control_value))
+        elif control_kind == 'velocity':
+            self.set_velocity_target(np.array(control_value))
+        elif control_kind == 'combined':
+            # Handle combined controls
+            for kind, value in control_value.items():
+                self.apply_control(kind, value)
+        else:
+            print(f"Warning: Unknown control kind '{control_kind}'")
+
+        # Apply accumulated forces to Genesis entity
+        self._apply_forces_to_entity()
+
+    def _apply_forces_to_entity(self):
+        """Apply accumulated forces and torques to the Genesis entity."""
+        # Combine all forces and torques
+        total_force = getattr(self, 'control_force', np.zeros(3))
+        total_torque = getattr(self, 'control_torque', np.zeros(3))
+
+        # Apply forces to Genesis entity
+        # Genesis uses DOF forces: [fx, fy, fz, tx, ty, tz]
+        try:
+            force_vector = np.concatenate([total_force, total_torque])
+            self.entity.set_dofs_force(force_vector)
+        except Exception as e:
+            print(f"Warning: Could not set forces on Genesis entity: {e}")
+            # Try alternative method
+            try:
+                self.entity.control_dofs_force(force_vector)
+            except Exception as e2:
+                print(f"Warning: Alternative force method also failed: {e2}")
+
     def set_control(self, action: np.ndarray):
         """Set control forces and torques."""
         # action is [forward_force, rotation_torque]
@@ -290,6 +359,13 @@ class GenesisBodyEnv(Environment):
         # Step counter for outputs
         self.step_count = 0
 
+    def get_body_by_id(self, body_id: str) -> Optional[Body]:
+        """Get a body by its ID."""
+        for body in self.bodies:
+            if body.id == body_id:
+                return body
+        return None
+
     def _default_config(self) -> dict:
         """Default environment configuration."""
         return {
@@ -352,6 +428,73 @@ class GenesisBodyEnv(Environment):
                 control_input = np.array([0.0, control_input])  # Assume torque
             state = self.step(control_input)
             print(f"Step {step}: Position {state.r}, Velocity {state.v}")
+
+        # Finalize outputs
+        for output in self.outputs:
+            output.finalize()
+
+    def run_simulation_with_controls(self, control_sources: List["ControlSource"], outputs=None, steps=50, initial_pos=None):
+        """
+        Run simulation with multiple control sources using the new control system.
+
+        Args:
+            control_sources: List of ControlSource objects
+            outputs: List of output handlers
+            steps: Number of simulation steps
+            initial_pos: Initial position for bodies
+        """
+        if outputs is not None:
+            self.outputs = outputs
+
+        # Set initial position if provided
+        if initial_pos:
+            for body in self.bodies:
+                body.state.r = np.array(initial_pos)
+                body.state.v = np.zeros(3)
+                body.state.theta = 0.0
+                body.state.omega = 0.0
+
+        # Initialize all outputs
+        for output in self.outputs:
+            output.initialize()
+
+        # Run simulation steps
+        for step in range(steps):
+            # Create control channel and get controls from all sources
+            from control_sources import SignalChannel
+            channel = SignalChannel()
+            for control_source in control_sources:
+                channel = control_source.get_control(channel, step)
+
+            # Apply controls to bodies
+            self.apply_controls_from_channel(channel, self.dt)
+
+            # Step physics for all bodies
+            for body in self.bodies:
+                # For Genesis, controls are applied directly to entities
+                # Just step the scene
+                self.physics.scene.step()
+
+                # Get updated state
+                if self.bodies:
+                    state = self.bodies[0].get_state()
+                    print(f"Step {step}: Position {state.r}, Velocity {state.v}")
+
+            # Update visualizers
+            for viz in self.visualizers:
+                if self.bodies:
+                    viz.update(self.bodies[0].state)
+
+            # Process outputs
+            for output in self.outputs:
+                # For backward compatibility, pass the first body's control
+                first_control = channel[control_sources[0].lain_index] if control_sources else np.zeros(2)
+                if isinstance(first_control, (tuple, list)):
+                    first_control = np.array(first_control)
+                elif isinstance(first_control, (int, float)):
+                    first_control = np.array([0.0, first_control])
+                output.process_step(self.step_count, first_control)
+                self.step_count += 1
 
         # Finalize outputs
         for output in self.outputs:

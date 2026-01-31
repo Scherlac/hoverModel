@@ -32,8 +32,8 @@ class LainInfo():
             description: str):
         
         LainInfo.index += 1
+        self.index = LainInfo.index
         
-        # self.index = LainInfo.index
         self.kind = kind
         self.typeinfo = typeinfo
         self.id = id
@@ -238,7 +238,194 @@ class HoveringControl(ControlSource):
         return "Hovering (no control inputs)"
 
 
+class ForceControl(ControlSource):
+    """Generates constant force control signals."""
+
+    def __init__(self, id: str, force: np.ndarray = np.array([1.0, 0.0, 0.0])):
+        super(ForceControl, self).__init__(
+            id = id,
+            kind = "force",
+            typeinfo = np.ndarray,
+            description = "Provides constant 3D force vector control",
+        )
+        self.force = force
+
+    def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        while len(channel) <= self.lain_index:
+            channel.append(None)
+        channel[self.lain_index] = self.force.copy()
+        return channel
+
+    def get_description(self) -> str:
+        return f"Constant force (force={self.force})"
+
+
+class TorqueControl(ControlSource):
+    """Generates constant torque control signals."""
+
+    def __init__(self, id: str, torque: np.ndarray = np.array([0.0, 0.0, 0.1])):
+        super(TorqueControl, self).__init__(
+            id = id,
+            kind = "torque",
+            typeinfo = np.ndarray,
+            description = "Provides constant 3D torque vector control",
+        )
+        self.torque = torque
+
+    def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        while len(channel) <= self.lain_index:
+            channel.append(None)
+        channel[self.lain_index] = self.torque.copy()
+        return channel
+
+    def get_description(self) -> str:
+        return f"Constant torque (torque={self.torque})"
+
+
+class AngularMomentumControl(ControlSource):
+    """Generates angular momentum control signals."""
+
+    def __init__(self, id: str, angular_momentum: np.ndarray = np.array([0.0, 0.0, 0.05])):
+        super(AngularMomentumControl, self).__init__(
+            id = id,
+            kind = "angular_momentum",
+            typeinfo = np.ndarray,
+            description = "Provides angular momentum vector control",
+        )
+        self.angular_momentum = angular_momentum
+
+    def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        while len(channel) <= self.lain_index:
+            channel.append(None)
+        channel[self.lain_index] = self.angular_momentum.copy()
+        return channel
+
+    def get_description(self) -> str:
+        return f"Angular momentum (L={self.angular_momentum})"
+
+
+class PositionControl(ControlSource):
+    """Generates position setpoint control signals."""
+
+    def __init__(self, id: str, target_position: np.ndarray = np.array([2.0, 0.0, 1.0])):
+        super(PositionControl, self).__init__(
+            id = id,
+            kind = "position",
+            typeinfo = np.ndarray,
+            description = "Provides target position setpoint control",
+        )
+        self.target_position = target_position
+
+    def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        while len(channel) <= self.lain_index:
+            channel.append(None)
+        channel[self.lain_index] = self.target_position.copy()
+        return channel
+
+    def get_description(self) -> str:
+        return f"Position control (target={self.target_position})"
+
+
+class VelocityControl(ControlSource):
+    """Generates velocity setpoint control signals."""
+
+    def __init__(self, id: str, target_velocity: np.ndarray = np.array([1.0, 0.0, 0.0])):
+        super(VelocityControl, self).__init__(
+            id = id,
+            kind = "velocity",
+            typeinfo = np.ndarray,
+            description = "Provides target velocity setpoint control",
+        )
+        self.target_velocity = target_velocity
+
+    def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        while len(channel) <= self.lain_index:
+            channel.append(None)
+        channel[self.lain_index] = self.target_velocity.copy()
+        return channel
+
+    def get_description(self) -> str:
+        return f"Velocity control (target={self.target_velocity})"
+
+
+class CombinedControl(ControlSource):
+    """Combines multiple control types for a single body."""
+
+    def __init__(self, id: str, controls: Dict[str, Any]):
+        """
+        Initialize combined control.
+
+        Args:
+            id: Body ID to control
+            controls: Dict mapping control kinds to values, e.g.:
+                     {'force': np.array([1.0, 0.0, 0.0]),
+                      'torque': np.array([0.0, 0.0, 0.1]),
+                      'angular_momentum': np.array([0.0, 0.0, 0.05])}
+        """
+        super(CombinedControl, self).__init__(
+            id = id,
+            kind = "combined",
+            typeinfo = dict,
+            description = "Provides multiple control types simultaneously",
+        )
+        self.controls = controls
+
+    def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        while len(channel) <= self.lain_index:
+            channel.append(None)
+        channel[self.lain_index] = self.controls.copy()
+        return channel
+
+    def get_description(self) -> str:
+        return f"Combined control ({list(self.controls.keys())})"
+
+
 class ControlSourceFactory:
+    """Factory for creating control sources."""
+
+    @staticmethod
+    def create_hovering(id: str) -> ControlSource:
+        return HoveringControl(id)
+
+    @staticmethod
+    def create_linear(id: str, forward_force: float = 0.8) -> ControlSource:
+        return LinearMovementControl(id, forward_force)
+
+    @staticmethod
+    def create_rotational(id: str, rotation_torque: float = 0.3) -> ControlSource:
+        return RotationalControl(id, rotation_torque)
+
+    @staticmethod
+    def create_sinusoidal(id: str) -> ControlSource:
+        return SinusoidalControl(id)
+
+    @staticmethod
+    def create_chaotic(id: str) -> ControlSource:
+        return ChaoticControl(id)
+
+    @staticmethod
+    def create_force(id: str, force: np.ndarray = np.array([1.0, 0.0, 0.0])) -> ControlSource:
+        return ForceControl(id, force)
+
+    @staticmethod
+    def create_torque(id: str, torque: np.ndarray = np.array([0.0, 0.0, 0.1])) -> ControlSource:
+        return TorqueControl(id, torque)
+
+    @staticmethod
+    def create_angular_momentum(id: str, angular_momentum: np.ndarray = np.array([0.0, 0.0, 0.05])) -> ControlSource:
+        return AngularMomentumControl(id, angular_momentum)
+
+    @staticmethod
+    def create_position(id: str, target_position: np.ndarray = np.array([2.0, 0.0, 1.0])) -> ControlSource:
+        return PositionControl(id, target_position)
+
+    @staticmethod
+    def create_velocity(id: str, target_velocity: np.ndarray = np.array([1.0, 0.0, 0.0])) -> ControlSource:
+        return VelocityControl(id, target_velocity)
+
+    @staticmethod
+    def create_combined(id: str, controls: Dict[str, Any]) -> ControlSource:
+        return CombinedControl(id, controls)
     """Factory for creating control sources."""
 
     @staticmethod

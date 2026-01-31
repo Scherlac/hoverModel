@@ -6,7 +6,7 @@ defined in components.py, providing the default Open3D + NumPy physics backend.
 """
 
 import numpy as np
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 import pathlib
 
 from components import PhysicsEngine, Body, Environment, Visualizer, VisualizationOutput
@@ -164,13 +164,23 @@ class DefaultBody(Body):
         Calculate hovercraft-specific forces and torques.
 
         Args:
-            action: [forward_force, rotation_torque]
+            action: [forward_force, rotation_torque] (legacy support)
             environment_state: Environment conditions
 
         Returns:
             Tuple of (total_force_vector, total_torque_scalar)
         """
-        forward_force, rotation_torque = action
+        # Check if we have applied controls, otherwise use legacy action
+        if hasattr(self, 'applied_force') and self.applied_force is not None:
+            forward_force = self.applied_force[0]  # x-component
+            applied_force_z = self.applied_force[2] if len(self.applied_force) > 2 else 0.0
+        else:
+            forward_force = action[0]
+
+        if hasattr(self, 'applied_torque') and self.applied_torque is not None:
+            rotation_torque = self.applied_torque
+        else:
+            rotation_torque = action[1]
 
         # Environment forces
         gravity = environment_state.get('gravity', np.array([0.0, 0.0, -9.81]))
@@ -178,6 +188,10 @@ class DefaultBody(Body):
         # DefaultBody-specific forces
         lift_force = np.random.normal(self.lift_force_mean, self.lift_force_std)
         lift_vector = np.array([0.0, 0.0, lift_force])
+
+        # Add any applied z-force
+        if 'applied_force_z' in locals():
+            lift_vector[2] += applied_force_z
 
         # Forward force in direction of orientation
         forward_vector = forward_force * np.array([
@@ -205,6 +219,30 @@ class DefaultBody(Body):
             'y': (-5.0, 5.0),
             'z': (0.0, 10.0)
         }
+
+    def apply_force(self, force: np.ndarray) -> None:
+        """Apply a force vector to the hovercraft."""
+        # Store the applied force for use in get_forces
+        self.applied_force = force
+
+    def apply_torque(self, torque: np.ndarray) -> None:
+        """Apply a torque vector to the hovercraft."""
+        # For 2D hovercraft, we mainly care about z-torque
+        self.applied_torque = torque[2] if len(torque) > 2 else torque[0]
+
+    def apply_angular_momentum(self, angular_momentum: np.ndarray) -> None:
+        """Apply angular momentum to the hovercraft."""
+        # Angular momentum affects rotational velocity
+        # L = I * ω, so ω = L / I
+        self.state.omega += angular_momentum[2] / self.moment_of_inertia
+
+    def set_position_target(self, target_position: np.ndarray) -> None:
+        """Set position control target."""
+        self.position_target = target_position
+
+    def set_velocity_target(self, target_velocity: np.ndarray) -> None:
+        """Set velocity control target."""
+        self.velocity_target = target_velocity
 
     def copy(self) -> 'DefaultBody':
         """Create a copy of this hovercraft."""
@@ -561,12 +599,109 @@ class DefaultBodyEnv(Environment):
         if body in self.bodies:
             self.bodies.remove(body)
 
-    def get_bodies(self) -> list[Body]:
-        """Get all bodies in the environment."""
-        return self.bodies.copy()
+    def get_body_by_id(self, body_id: str) -> Optional[Body]:
+        """Get a body by its ID."""
+        for body in self.bodies:
+            if body.id == body_id:
+                return body
+        return None
 
+    def run_simulation_with_controls(self, control_sources: List["ControlSource"], outputs=None, steps=50, initial_pos=None):
+        """
+        Run simulation with multiple control sources using the new control system.
+
+        Args:
+            control_sources: List of ControlSource objects
+            outputs: List of output handlers
+            steps: Number of simulation steps
+            initial_pos: Initial position for bodies
+        """
+        if outputs is not None:
+            self.outputs = outputs
+
+        # Set initial position if provided
+        if initial_pos:
+            for body in self.bodies:
+                body.state.r = np.array(initial_pos)
+                body.state.v = np.zeros(3)
+                body.state.theta = 0.0
+                body.state.omega = 0.0
+                body.state.clear_events()
+
+        # Initialize all outputs
+        for output in self.outputs:
+            output.initialize()
+
+        # Run simulation steps
+        for step in range(steps):
+            # Create control channel and get controls from all sources
+            channel = SignalChannel()
+            for control_source in control_sources:
+                channel = control_source.get_control(channel, step)
+
+            # Apply controls to bodies
+            self.apply_controls_from_channel(channel, self.dt)
+
+            # Step physics for all bodies (using applied controls)
+            for body in self.bodies:
+                # Use zero action since controls are applied directly to bodies
+                self.physics.step(body, np.zeros(2), self.dt)
+
+            # Update visualizers
+            for visualizer in self.visualizers:
+                if self.bodies:
+                    visualizer.update(self.bodies[0].state)
+
+            # Process outputs
+            for output in self.outputs:
+                # For backward compatibility, pass the first body's control
+                first_control = channel[control_sources[0].lain_index] if control_sources else np.zeros(2)
+                if isinstance(first_control, (tuple, list)):
+                    first_control = np.array(first_control)
+                elif isinstance(first_control, (int, float)):
+                    first_control = np.array([0.0, first_control])
+                output.process_step(step, first_control)
+
+        # Finalize outputs
+        for output in self.outputs:
+            output.finalize()
 
     def run_simulation(self, control_source, outputs=None, steps=50, initial_pos=None):
+        """Run simulation with control source and multiple outputs."""
+        if outputs is not None:
+            self.outputs = outputs
+        # Set initial position if provided
+        if initial_pos:
+            self.state.r = np.array(initial_pos)
+            self.state.v = np.zeros(3)
+            self.state.theta = self.state.omega = 0.0
+            self.state.clear_events()
+
+        # Initialize all outputs
+        for output in self.outputs:
+            output.initialize()
+
+        # Run simulation steps
+        for step in range(steps):
+            channel = SignalChannel()
+            channel = control_source.get_control(channel, step)
+            control_input = channel[control_source.lain_index]
+            if isinstance(control_input, (tuple, list)):
+                control_input = np.array(control_input)
+            elif isinstance(control_input, (int, float)):
+                control_input = np.array([0.0, control_input])  # Assume torque or something
+            self.step(control_input)
+
+            # process step for all visualizers/outputs
+            for visualizer in self.visualizers:
+                visualizer.update(self.state)
+
+            for output in self.outputs:
+                output.process_step(step, control_input)
+
+        # Finalize all outputs
+        for output in self.outputs:
+            output.finalize()
         """Run simulation with control source and multiple outputs."""
         if outputs is not None:
             self.outputs = outputs

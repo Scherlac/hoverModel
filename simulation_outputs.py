@@ -50,7 +50,7 @@ class LoggingSimulationOutput(SimulationOutput):
         print("Step | Position (x,y,z) | Velocity (vx,vy,vz) | Control (F,τ) | Theta | Omega")
         print("-" * 80)
 
-    def process_step(self, step: int, control: Tuple[float, float]) -> None:
+    def process_step(self, step: int, control) -> None:
         # Display events if any occurred
         if self.env.state.events:
             for event in self.env.state.events:
@@ -62,9 +62,20 @@ class LoggingSimulationOutput(SimulationOutput):
             vel = self.env.state.v
             theta = self.env.state.theta
             omega = self.env.state.omega
+
+            # Format control display based on type
+            if isinstance(control, dict):
+                control_str = f"dict({list(control.keys())})"
+            elif isinstance(control, (list, tuple, np.ndarray)) and len(control) >= 2:
+                control_str = f"({control[0]:5.2f},{control[1]:5.2f})"
+            elif isinstance(control, (list, tuple, np.ndarray)) and len(control) == 1:
+                control_str = f"({control[0]:5.2f})"
+            else:
+                control_str = f"{control}"
+
             print(f"{step:4d} | ({pos[0]:6.2f},{pos[1]:6.2f},{pos[2]:6.2f}) | "
                   f"({vel[0]:6.2f},{vel[1]:6.2f},{vel[2]:6.2f}) | "
-                  f"({control[0]:5.2f},{control[1]:5.2f}) | "
+                  f"{control_str:>12} | "
                   f"{theta:6.2f} | {omega:6.2f}")
 
     def finalize(self) -> None:
