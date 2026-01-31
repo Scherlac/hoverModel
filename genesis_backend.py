@@ -193,9 +193,43 @@ class GenesisRigidBody(Body):
         self.control_force = np.array([forward_force, 0.0, 0.0])
         self.control_torque = np.array([0.0, 0.0, rotation_torque])
 
-        # Apply to Genesis entity
-        # Note: Genesis handles forces internally, we may need to apply them differently
-        pass
+        # Apply forces to Genesis entity
+        # Genesis uses DOF forces: [fx, fy, fz, tx, ty, tz]
+        try:
+            force_vector = np.concatenate([self.control_force, self.control_torque])
+            self.entity.set_dofs_force(force_vector)
+        except Exception as e:
+            print(f"Warning: Could not set forces on Genesis entity: {e}")
+            # Try alternative method
+            try:
+                self.entity.control_dofs_force(force_vector)
+            except Exception as e2:
+                print(f"Warning: Alternative force method also failed: {e2}")
+
+    def get_state(self) -> BodyState:
+        """Get current body state from Genesis entity."""
+        try:
+            # Get position from Genesis
+            pos = self.entity.get_pos()
+            self.state.r = np.array(pos)
+
+            # Get orientation (quaternion to angle)
+            quat = self.entity.get_quat()
+            # Convert quaternion to rotation around z-axis (theta)
+            # For simplicity, extract theta from quaternion
+            # This is an approximation for 2D rotation
+            self.state.theta = 2 * np.arctan2(quat[2], quat[3])  # Simplified quaternion to angle
+
+            # Get velocities from Genesis DOFs
+            dofs_velocity = self.entity.get_dofs_velocity()
+            if len(dofs_velocity) >= 6:
+                self.state.v = np.array(dofs_velocity[:3])  # Linear velocity
+                self.state.omega = dofs_velocity[5]  # Angular velocity around z
+
+        except Exception as e:
+            print(f"Warning: Could not get state from Genesis entity: {e}")
+
+        return self.state
 
 
 class GenesisBodyEnv(Environment):
