@@ -12,18 +12,25 @@ State vector format (8 elements):
 
 from typing import Optional, Tuple
 import numpy as np
-from components import SimulationOutput
+
+from components import (
+    Environment,
+    SimulationOutput
+)
+
 from simulation_outputs import (
     LoggingSimulationOutput,
     VideoSimulationOutput,
     LiveVisualizationOutput,
     NullSimulationOutput
 )
-from environment import HovercraftEnv
-from components import NullVisualizer, Visualizer
+
+from default_backend import (
+    DefaultBodyEnv,
+    Open3DVisualizer,
+)
+
 from control_sources import ControlSource
-from body import Hovercraft
-from state import BodyState
 
 
 class DemoRunner:
@@ -32,9 +39,9 @@ class DemoRunner:
     def __init__(self, physics_config: Optional[dict] = None):
         self.physics_config = physics_config or {}
 
-    def create_environment(self) -> HovercraftEnv:
+    def create_environment(self) -> DefaultBodyEnv:
         """Create environment."""
-        return HovercraftEnv()
+        return DefaultBodyEnv()
 
     def run_test(self, control_source: ControlSource, steps: int = 50, initial_pos: tuple = None) -> None:
         """Run physics test with logging output."""
@@ -63,12 +70,11 @@ class DemoRunner:
             'z': (bounds[2][0], bounds[2][1])
         }
 
-        env = HovercraftEnv(visualizer=visualizer)
-        env.bounds = bounds_dict
-
         try:
-            from visualization import Open3DVisualizer
+            from default_backend import Open3DVisualizer
+            env = DefaultBodyEnv()
             visualizer = Open3DVisualizer(env)
+            env.register_visualizer(visualizer)
         except (ImportError, Exception) as e:
             print(f"Open3D visualizer not available ({e}), cannot run live visualization")
             return
@@ -97,20 +103,16 @@ class DemoRunner:
         # For video creation, we need a visualizer that can capture frames
         bounds = self.physics_config.get('bounds', [[-5, 5], [-5, 5], [0, 10]])
         try:
-            from visualization import Open3DVisualizer
-            # Convert bounds list to dict format expected by visualizer
-            bounds_dict = {
-                'x': (bounds[0][0], bounds[0][1]),
-                'y': (bounds[1][0], bounds[1][1]),
-                'z': (bounds[2][0], bounds[2][1])
-            }
-            visualizer = Open3DVisualizer(bounds_dict)
+            from default_backend import Open3DVisualizer
+            env = DefaultBodyEnv()
+            visualizer = Open3DVisualizer(env)
+            env.register_visualizer(visualizer)
         except (ImportError, Exception) as e:
             print(f"Open3D visualizer not available ({e}), using null visualizer")
-            from visualization import NullVisualizer
-            visualizer = NullVisualizer(bounds)
-
-        env = HovercraftEnv(visualizer=visualizer)
+            from components import NullVisualizer
+            env = DefaultBodyEnv()
+            visualizer = NullVisualizer(env)
+            env.register_visualizer(visualizer)
 
         if bouncing:
             output = BouncingVideoDemo(env, video_name, fps)

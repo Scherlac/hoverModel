@@ -8,9 +8,20 @@ import numpy as np
 import time
 import os
 from typing import Optional, Tuple
-from components import Environment, SimulationComponent, SimulationOutput, NullVisualizer
-from visualization import Visualizer, Open3DVisualizer, Open3DVisualizationOutput
-from control_sources import ControlSource
+from components import (
+    Environment, 
+    SimulationComponent, 
+    SimulationOutput, 
+    NullVisualizer, 
+    Visualizer
+)
+from default_backend import (
+    Open3DVisualizer, 
+    Open3DVisualizationOutput,
+)
+from control_sources import (
+    ControlSource,
+)
 
 
 

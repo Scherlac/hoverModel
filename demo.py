@@ -4,7 +4,9 @@ from demo_runner import DemoRunner
 from typing import List, Dict, Any
 from components import Environment
 from simulation_outputs import LoggingSimulationOutput, LiveVisualizationOutput, VideoSimulationOutput
-from environment import HovercraftEnv
+from default_backend import (
+    NewtonianPhysics, DefaultBodyEnv
+)
 
 runner = DemoRunner()
 
@@ -27,7 +29,7 @@ def run(controls, outputs, start_x, start_y, start_z):
     click.echo(f"🚀 Running {len(control_configs)} control(s), {len(output_configs)} output(s)")
     
     # Create environment first
-    env = HovercraftEnv()
+    env = DefaultBodyEnv()
     
     # Create outputs (they register themselves with the environment)
     output_instances = [create_output(oc['type'], oc['params'], env) for oc in output_configs]
@@ -71,7 +73,7 @@ def create_output(output_type: str, output_params: Dict[str, Any], env: Environm
 
 def run_all_tests():
     click.echo("🧪 Running tests...")
-    env = HovercraftEnv()
+    env = DefaultBodyEnv()
     body_id = env.bodies[0].id
     for name, control in [("hover", ControlSourceFactory.create_hovering(body_id)), ("linear", ControlSourceFactory.create_linear(body_id, 0.8)), ("rotate", ControlSourceFactory.create_rotational(body_id, 0.3))]:
         click.echo(f"Testing {name}...")

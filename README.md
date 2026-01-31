@@ -1,4 +1,4 @@
-# Hovercraft Simulation
+# DefaultBody Simulation
 
 A simple reinforcement learning environment simulation for a hovercraft using Open3D for 3D visualization.
 
@@ -43,9 +43,9 @@ This installs numpy, Open3D for the physics simulation and 3D visualization, and
 - `main.py` - Legacy entry point for basic visualization
 - `demo.py` - CLI interface for running demonstrations with modular control and output systems
 - `environment.py` - Main environment orchestrating physics, bodies, and visualization
-- `body.py` - Physical body representations with `Body` and `Hovercraft` classes
+- `body.py` - Physical body representations with `Body` and `DefaultBody` classes
 - `state.py` - Clean vector-based state representation with `BodyState` class
-- `physics.py` - Physics engine with abstract `PhysicsEngine` base class and `HovercraftPhysics`
+- `physics.py` - Physics engine with abstract `PhysicsEngine` base class and `NewtonianPhysics`
 - `visualization.py` - Visualization backends with abstract `Visualizer` base class
 - `control_sources.py` - Control signal generators for different movement patterns
 - `simulation_outputs.py` - Output handlers for various demonstration modes (logging, video, live visualization)
@@ -173,14 +173,14 @@ The codebase follows SOLID principles with a highly composable, modular architec
 ### Components
 - **`body.py`**: Physical body representations
   - `Body` - Abstract base class for physical bodies with mass, shape, and dynamics
-  - `Hovercraft` - Concrete hovercraft implementation with lifting force and control characteristics
+  - `DefaultBody` - Concrete hovercraft implementation with lifting force and control characteristics
   - Clean separation of physical properties from state and physics calculations
 - **`state.py`**: State representation and management
   - `BodyState` - Clean vector-based state with r/v vectors and theta/omega scalars
   - Single source of truth for state format and operations
   - Provides semantic vector accessors and validation
 - **`physics.py`**: Physics engine with abstract `PhysicsEngine` base class
-  - `HovercraftPhysics` - General Newtonian physics for any body type
+  - `NewtonianPhysics` - General Newtonian physics for any body type
   - Multi-body physics support with interaction handling
   - Vectorized calculations for performance
 - **`control_sources.py`**: Control signal generators
@@ -242,10 +242,10 @@ The demonstration system uses composition to combine control sources with output
 ```python
 from control_sources import ControlSourceFactory
 from simulation_outputs import LoggingSimulationOutput, LiveVisualizationOutput, VideoSimulationOutput
-from environment import HovercraftEnv
+from environment import DefaultBodyEnv
 
 # Create environment
-env = HovercraftEnv()
+env = DefaultBodyEnv()
 
 # Create control source
 control = ControlSourceFactory.create_linear(force=1.0)
@@ -296,12 +296,12 @@ omega  # Angular velocity (scalar)
 
 **Usage:**
 ```python
-from body import Hovercraft
+from body import DefaultBody
 from state import BodyState
 import numpy as np
 
 # Create a hovercraft body
-hovercraft = Hovercraft(mass=1.0, lift_force_mean=10.0)
+hovercraft = DefaultBody(mass=1.0, lift_force_mean=10.0)
 
 # Access its state
 state = hovercraft.get_state()
@@ -317,7 +317,7 @@ hovercraft.set_state(new_state)
 
 **Body-Physics Separation:**
 - **`Body` Class**: Abstract base class for physical bodies with mass, shape, and force calculations
-- **`Hovercraft` Class**: Concrete implementation with hovercraft-specific properties
+- **`DefaultBody` Class**: Concrete implementation with hovercraft-specific properties
 - **Physics Engine**: Now works with any `Body` object, not hovercraft-specific
 - **Multi-Body Support**: Architecture supports multiple interacting bodies
 - **Force Delegation**: Bodies define their own force calculations via `get_forces()`
@@ -387,22 +387,22 @@ python demo.py run --control linear:force=5.0:steps=100 --output live
 **Programmatic API:**
 ```python
 # Default configuration
-env = HovercraftEnv()
+env = DefaultBodyEnv()
 
 # Custom physics with null visualization (for testing)
-from physics import HovercraftPhysics
+from physics import NewtonianPhysics
 from visualization import NullVisualizer
-physics = HovercraftPhysics({'mass': 2.0})
-env = HovercraftEnv(physics_engine=physics, visualizer=NullVisualizer({}))
+physics = NewtonianPhysics({'mass': 2.0})
+env = DefaultBodyEnv(physics_engine=physics, visualizer=NullVisualizer({}))
 
 # Body-based configuration
-from body import Hovercraft
-hovercraft = Hovercraft(
+from body import DefaultBody
+hovercraft = DefaultBody(
     mass=1.5,
     lift_force_mean=12.0,
     friction_coefficient=0.05
 )
-env = HovercraftEnv(bodies=[hovercraft])
+env = DefaultBodyEnv(bodies=[hovercraft])
 
 # State management with vector properties
 from state import BodyState
@@ -426,14 +426,14 @@ video_output = VideoSimulationOutput(env, "boundary_test.mp4", fps=10)
 env.run_simulation(control, steps=100)
 
 # Vector gravity (e.g., simulating wind effects)
-wind_physics = HovercraftPhysics({
+wind_physics = NewtonianPhysics({
     'gravity': [0.5, 0.0, -9.81],  # [x, y, z] gravity vector
     'bounds': [[-10, 10], [-10, 10], [0, 15]]  # [[x_min, x_max], [y_min, y_max], [z_min, z_max]]
 })
-env = HovercraftEnv(physics_engine=wind_physics)
+env = DefaultBodyEnv(physics_engine=wind_physics)
 
 # Compact bounds configuration
-compact_physics = HovercraftPhysics({
+compact_physics = NewtonianPhysics({
     'bounds': [[-5, 5], [-5, 5], [0, 10]]  # Clean array format
 })
 ```

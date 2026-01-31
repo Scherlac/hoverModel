@@ -21,9 +21,9 @@ This document captures the software engineering principles, architectural decisi
 Each class has one reason to change and one primary responsibility:
 
 - **`Body`**: Physical properties and force calculations
-- **`Hovercraft`**: Hovercraft-specific properties and behaviors
+- **`DefaultBody`**: DefaultBody-specific properties and behaviors
 - **`BodyState`**: Kinematic state representation and operations
-- **`HovercraftEnv`**: Orchestrates physics and visualization of bodies
+- **`DefaultBodyEnv`**: Orchestrates physics and visualization of bodies
 - **`NewtonianPhysics`**: Numerical physics integration for any body type
 - **`ControlSource` subclasses**: Generate specific control patterns
 - **`SimulationOutput` subclasses**: Handle specific output formats
@@ -121,8 +121,8 @@ linear = ControlSourceFactory.create_linear(force=1.5)
 chaotic = ControlSourceFactory.create_chaotic()
 
 # Environment factory methods
-env = HovercraftEnv()  # Uses defaults
-env = HovercraftEnv(physics_engine=custom_physics, visualizer=null_vis)
+env = DefaultBodyEnv()  # Uses defaults
+env = DefaultBodyEnv(physics_engine=custom_physics, visualizer=null_vis)
 ```
 
 ### Composition over Inheritance
@@ -133,7 +133,7 @@ Flexible component combination:
 # python demo.py run --control linear:force=2.0:steps=100 --output video:filename=demo.mp4:fps=10
 
 # Programmatic composition
-env = HovercraftEnv()
+env = DefaultBodyEnv()
 control = ControlSourceFactory.create_linear(force=2.0)
 output = VideoSimulationOutput(env, "demo.mp4", fps=10)
 env.run_simulation(control, steps=100)
@@ -144,12 +144,12 @@ Loose coupling through constructor injection:
 
 ```python
 # Inject physics engine
-physics = HovercraftPhysics({'mass': 2.0})
-env = HovercraftEnv(physics_engine=physics)
+physics = NewtonianPhysics({'mass': 2.0})
+env = DefaultBodyEnv(physics_engine=physics)
 
 # Inject visualizer
 visualizer = NullVisualizer(bounds)
-env = HovercraftEnv(visualizer=visualizer)
+env = DefaultBodyEnv(visualizer=visualizer)
 ```
 
 ## Cohesion and Coupling
@@ -274,7 +274,7 @@ class BodyState:
 ### Fluent Interfaces
 ```python
 # Method chaining for configuration
-physics = HovercraftPhysics({
+physics = NewtonianPhysics({
     'mass': 2.0,
     'bounds': [[-10, 10], [-10, 10], [0, 15]]
 })
@@ -349,7 +349,7 @@ python demo.py run --control linear:force=20.0:steps=100 --output video:filename
 
 **Body-Physics Separation (Latest):**
 - **`Body` Abstract Class**: Base class for physical bodies with mass, shape, and force calculations
-- **`Hovercraft` Concrete Class**: Specific body type with lifting force and control characteristics
+- **`DefaultBody` Concrete Class**: Specific body type with lifting force and control characteristics
 - **Physics Engine Refactoring**: `NewtonianPhysics` now works with any `Body` object
 - **Multi-Body Support**: Environment can contain multiple interacting bodies
 - **Force Delegation**: Bodies define their own `get_forces()` methods

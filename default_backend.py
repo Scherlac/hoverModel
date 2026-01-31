@@ -125,12 +125,8 @@ class NewtonianPhysics(PhysicsEngine):
         return self.bounds
 
 
-# Backward compatibility alias
-HovercraftPhysics = NewtonianPhysics
-
-
-class Hovercraft(Body):
-    """Hovercraft-specific body with lifting force and control characteristics."""
+class DefaultBody(Body):
+    """DefaultBody-specific body with lifting force and control characteristics."""
 
     def __init__(self,
                  mass: float = 1.0,
@@ -145,7 +141,7 @@ class Hovercraft(Body):
         Initialize hovercraft body.
 
         Args:
-            mass: Hovercraft mass in kg
+            mass: DefaultBody mass in kg
             moment_of_inertia: Rotational inertia
             lift_force_mean: Mean lifting force
             lift_force_std: Standard deviation of lifting force
@@ -154,9 +150,9 @@ class Hovercraft(Body):
             friction_coefficient: Ground friction coefficient
             shape: Shape description (mesh, etc.)
         """
-        super(Hovercraft, self).__init__(mass, moment_of_inertia, shape)
+        super(DefaultBody, self).__init__(mass, moment_of_inertia, shape)
 
-        # Hovercraft-specific properties
+        # DefaultBody-specific properties
         self.lift_force_mean = lift_force_mean
         self.lift_force_std = lift_force_std
         self.rotational_noise_mean = rotational_noise_mean
@@ -179,7 +175,7 @@ class Hovercraft(Body):
         # Environment forces
         gravity = environment_state.get('gravity', np.array([0.0, 0.0, -9.81]))
 
-        # Hovercraft-specific forces
+        # DefaultBody-specific forces
         lift_force = np.random.normal(self.lift_force_mean, self.lift_force_std)
         lift_vector = np.array([0.0, 0.0, lift_force])
 
@@ -210,9 +206,9 @@ class Hovercraft(Body):
             'z': (0.0, 10.0)
         }
 
-    def copy(self) -> 'Hovercraft':
+    def copy(self) -> 'DefaultBody':
         """Create a copy of this hovercraft."""
-        hovercraft = Hovercraft(
+        hovercraft = DefaultBody(
             mass=self.mass,
             moment_of_inertia=self.moment_of_inertia,
             lift_force_mean=self.lift_force_mean,
@@ -226,7 +222,7 @@ class Hovercraft(Body):
         return hovercraft
 
     def __repr__(self) -> str:
-        return f"Hovercraft(mass={self.mass}, state={self.state})"
+        return f"DefaultBody(mass={self.mass}, state={self.state})"
 
 ASSET_ROOT = pathlib.Path(__file__).parent / "assets"
 
@@ -279,12 +275,12 @@ class Open3DVisualizer(Visualizer):
             raise ImportError("Open3D required for 3D visualization")
 
         self.vis = o3d.visualization.Visualizer()
-        self.vis.create_window(window_name="Hovercraft Simulation", width=1024, height=768, visible=True)
+        self.vis.create_window(window_name="DefaultBody Simulation", width=1024, height=768, visible=True)
 
         # Setup environment geometry
         self._setup_environment(self.env.bounds)
 
-        # Hovercraft geometry
+        # DefaultBody geometry
         body_shape = self.env.bodies[0].shape
         mesh_path = body_shape.get('mesh_path') if isinstance(body_shape, dict) else None
         if mesh_path:
@@ -376,7 +372,7 @@ class Open3DVisualizer(Visualizer):
         self.vis.destroy_window()
 
 
-class HovercraftEnv(Environment):
+class DefaultBodyEnv(Environment):
     """
     Environment containing physical bodies with proper separation of concerns.
 
@@ -398,7 +394,7 @@ class HovercraftEnv(Environment):
             config: Environment configuration
             bodies: List of bodies in the environment (default: single hovercraft)
         """
-        super(HovercraftEnv, self).__init__()
+        super(DefaultBodyEnv, self).__init__()
         self.config = config or self._default_config()
         self.dt = self.config.get('dt', 0.01)
 
@@ -425,7 +421,7 @@ class HovercraftEnv(Environment):
                 'rotational_noise_std': self.config.get('rot_std', 0.5),
                 'friction_coefficient': self.config.get('friction_k', 0.1)
             }
-            self.bodies = [Hovercraft(**hovercraft_config)]
+            self.bodies = [DefaultBody(**hovercraft_config)]
         else:
             self.bodies = bodies
 
