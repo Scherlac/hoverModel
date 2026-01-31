@@ -51,16 +51,13 @@ The Genesis backend provides more sophisticated physics capabilities including a
 
 - `main.py` - Legacy entry point for basic visualization
 - `demo.py` - CLI interface for running demonstrations with modular control and output systems
-- `default_backend.py` - Default physics backend using Open3D + NumPy with Newtonian physics
+- `components.py` - Abstract base classes and interfaces for physics engines, bodies, environments, and visualization
+- `default_backend.py` - Default physics backend using Open3D + NumPy with Newtonian physics, bodies, and visualization
 - `genesis_backend.py` - Alternative physics backend using Genesis engine with advanced physics simulation
-- `environment.py` - Main environment orchestrating physics, bodies, and visualization
-- `body.py` - Physical body representations with `Body` and `DefaultBody` classes
 - `state.py` - Clean vector-based state representation with `BodyState` class
-- `physics.py` - Physics engine with abstract `PhysicsEngine` base class and `NewtonianPhysics`
-- `visualization.py` - Visualization backends with abstract `Visualizer` base class
 - `control_sources.py` - Control signal generators for different movement patterns
 - `simulation_outputs.py` - Output handlers for various demonstration modes (logging, video, live visualization)
-- `components.py` - Abstract base classes and interfaces
+- `demo_runner.py` - Demo orchestration and configuration logic
 - `pyproject.toml` - Project configuration and dependencies
 - `README.md` - This documentation file
 
@@ -200,25 +197,27 @@ python demo.py run --help
 The codebase follows SOLID principles with a highly composable, modular architecture:
 
 ### Components
-- **`body.py`**: Physical body representations
+- **`components.py`**: Abstract base classes and interfaces
   - `Body` - Abstract base class for physical bodies with mass, shape, and dynamics
-  - `DefaultBody` - Concrete hovercraft implementation with lifting force and control characteristics
-  - Clean separation of physical properties from state and physics calculations
-- **`state.py`**: State representation and management
-  - `BodyState` - Clean vector-based state with r/v vectors and theta/omega scalars
-  - Single source of truth for state format and operations
-  - Provides semantic vector accessors and validation
+  - `Environment` - Abstract base class for simulation environments
+  - `PhysicsEngine` - Abstract base class for physics implementations
+  - `Visualizer` & `VisualizationOutput` - Abstract visualization interfaces
+  - `SimulationOutput` - Abstract base class for output handlers
 - **`default_backend.py`**: Default physics backend implementation
   - `NewtonianPhysics` - General Newtonian physics using Open3D + NumPy
+  - `DefaultBody` - Concrete hovercraft implementation with lifting force characteristics
   - `DefaultBodyEnv` - Environment with Open3D visualization
+  - `Open3DVisualizer` & `Open3DVisualizationOutput` - Open3D-based visualization
   - Fast, lightweight physics simulation
 - **`genesis_backend.py`**: Advanced physics backend using Genesis engine
   - `GenesisPhysics` - Genesis-based physics with collision detection
   - `GenesisRigidBody` - Rigid body with complex mesh support
   - `GenesisBodyEnv` - Environment with advanced physics capabilities
-- **`physics.py`**: Abstract physics engine interfaces
-  - `PhysicsEngine` - Abstract base class for physics implementations
-  - Multi-backend support through common interfaces
+  - `GenesisVisualizer` & `GenesisVisualizationOutput` - Genesis-based visualization
+- **`state.py`**: State representation and management
+  - `BodyState` - Clean vector-based state with r/v vectors and theta/omega scalars
+  - Single source of truth for state format and operations
+  - Provides semantic vector accessors and validation
 - **`control_sources.py`**: Control signal generators
   - `ControlSourceFactory` - Factory pattern for creating control sources
   - `LinearMovementControl` - Constant forward thrust
@@ -229,8 +228,8 @@ The codebase follows SOLID principles with a highly composable, modular architec
   - `LoggingSimulationOutput` - Console position reporting
   - `LiveVisualizationOutput` - Interactive 3D Open3D display
   - `VideoSimulationOutput` - MP4 video generation with automatic frame cleanup
-- **`visualization.py`**: Visualization backends with abstract `Visualizer` base class
-- **`environment.py`**: Main environment orchestrating physics and visualization
+- **`demo_runner.py`**: Demo orchestration and configuration logic
+  - `DemoRunner` - High-level demo management and execution
 - **`demo.py`**: CLI interface using the modular system
 
 ### Design Benefits
@@ -307,7 +306,7 @@ The demonstration system uses composition to combine control sources with output
 ```python
 from control_sources import ControlSourceFactory
 from simulation_outputs import LoggingSimulationOutput, LiveVisualizationOutput, VideoSimulationOutput
-from environment import DefaultBodyEnv
+from default_backend import DefaultBodyEnv
 
 # Create environment
 env = DefaultBodyEnv()
@@ -395,10 +394,12 @@ hovercraft.set_state(new_state)
 - **Maintained Compatibility**: `__array__()` method preserves backward compatibility
 
 **File-Level Separation:**
-- **`body.py`**: Physical body representations and properties
+- **`components.py`**: Abstract interfaces and base classes
+- **`default_backend.py`**: Concrete implementations for default physics backend
+- **`genesis_backend.py`**: Concrete implementations for Genesis physics backend
 - **`simulation_outputs.py`**: Pure output handling (logging, video generation)
 - **`demo_runner.py`**: Demo orchestration and configuration logic
-- Clear separation: "what to output" vs "how to configure demos"
+- Clear separation: interfaces vs implementations, output vs orchestration
 
 **Semantic Improvements:**
 - Renamed classes for clarity (`DemoOutput` → `SimulationOutput`)
@@ -491,6 +492,7 @@ video_output = VideoSimulationOutput(env, "boundary_test.mp4", fps=10)
 env.run_simulation(control, steps=100)
 
 # Vector gravity (e.g., simulating wind effects)
+from default_backend import NewtonianPhysics, DefaultBodyEnv
 wind_physics = NewtonianPhysics({
     'gravity': [0.5, 0.0, -9.81],  # [x, y, z] gravity vector
     'bounds': [[-10, 10], [-10, 10], [0, 15]]  # [[x_min, x_max], [y_min, y_max], [z_min, z_max]]
