@@ -159,6 +159,10 @@ class DefaultBody(Body):
         self.rotational_noise_std = rotational_noise_std
         self.friction_coefficient = friction_coefficient
 
+        # Initialize applied controls
+        self.applied_force = np.zeros(3)
+        self.applied_torque = 0.0
+
     def get_forces(self, action: np.ndarray, environment_state: Dict[str, Any]) -> Tuple[np.ndarray, float]:
         """
         Calculate hovercraft-specific forces and torques.
@@ -172,13 +176,21 @@ class DefaultBody(Body):
         """
         # Check if we have applied controls, otherwise use legacy action
         if hasattr(self, 'applied_force') and self.applied_force is not None:
-            forward_force = self.applied_force[0]  # x-component
-            applied_force_z = self.applied_force[2] if len(self.applied_force) > 2 else 0.0
+            if isinstance(self.applied_force, np.ndarray) and self.applied_force.ndim > 0:
+                forward_force = self.applied_force[0]  # x-component
+                applied_force_z = self.applied_force[2] if len(self.applied_force) > 2 else 0.0
+            else:
+                # applied_force is a scalar, use it as forward force
+                forward_force = float(self.applied_force)
+                applied_force_z = 0.0
         else:
             forward_force = action[0]
 
         if hasattr(self, 'applied_torque') and self.applied_torque is not None:
-            rotation_torque = self.applied_torque
+            if isinstance(self.applied_torque, np.ndarray) and self.applied_torque.ndim > 0:
+                rotation_torque = self.applied_torque[2] if len(self.applied_torque) > 2 else self.applied_torque[0]
+            else:
+                rotation_torque = float(self.applied_torque)
         else:
             rotation_torque = action[1]
 

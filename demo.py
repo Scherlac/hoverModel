@@ -33,13 +33,13 @@ def run(controls, outputs, bodies, backend, start_x, start_y, start_z, steps):
     body_configs = [parse_spec(spec, 'body') for spec in bodies] if bodies else []
     
     click.echo(f"🚀 Running simulation with {backend} backend")
-    click.echo(f"   Bodies: {len(body_configs) + 1} (default + {len(body_configs)} added)")
+    click.echo(f"   Bodies: {len(body_configs)} (default + {len(body_configs)} added)" if not bodies else f"   Bodies: {len(body_configs)}")
     click.echo(f"   Controls: {len(control_configs)}")
     click.echo(f"   Outputs: {len(output_configs)}")
     
     # Create environment based on backend choice
     if backend == 'genesis':
-        env = GenesisBodyEnv()
+        env = GenesisBodyEnv(bodies=None if not bodies else [])
     else:
         env = DefaultBodyEnv()
     
@@ -54,7 +54,20 @@ def run(controls, outputs, bodies, backend, start_x, start_y, start_z, steps):
     control_sources = []
     for config in control_configs:
         # Extract body ID from config, default to first body if not specified
-        body_id = config['params'].pop('body', env.bodies[0].id)
+        body_param = config['params'].pop('body', None)
+        if body_param is not None:
+            try:
+                body_index = int(body_param)
+                if 0 <= body_index < len(env.bodies):
+                    body_id = env.bodies[body_index].id
+                else:
+                    click.echo(f"Warning: Body index {body_index} out of range, using first body")
+                    body_id = env.bodies[0].id if env.bodies else None
+            except ValueError:
+                # If it's not a number, assume it's a body ID
+                body_id = body_param
+        else:
+            body_id = env.bodies[0].id if env.bodies else None
         control = create_control(config['type'], config['params'], body_id)
         control_sources.append(control)
     
@@ -67,24 +80,56 @@ def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
     config = {'type': parts[0], 'params': {}}
     if spec_type == 'control': config['steps'] = 50
     
-    for part in parts[1:]:
-        if '=' in part:
-            k, v = part.split('=', 1)
-            if spec_type == 'control' and k == 'steps':
-                config['steps'] = int(v)
+    if len(parts) > 1:
+        # Join all parts after type and split on commas to get individual parameters
+        param_str = ':'.join(parts[1:])
+        
+        # Parse parameters, respecting brackets
+        param_parts = []
+        current = ''
+        in_bracket = False
+        for char in param_str:
+            if char == '[':
+                in_bracket = True
+                current += char
+            elif char == ']':
+                in_bracket = False
+                current += char
+            elif char == ',' and not in_bracket:
+                param_parts.append(current.strip())
+                current = ''
             else:
-                # Try to parse as vector (comma-separated numbers)
-                if ',' in v:
-                    try:
-                        config['params'][k] = [float(x.strip()) for x in v.split(',')]
-                    except ValueError:
-                        config['params'][k] = v
+                current += char
+        if current:
+            param_parts.append(current.strip())
+        
+        for part in param_parts:
+            if '=' in part:
+                k, v = part.split('=', 1)
+                k = k.strip()
+                v = v.strip()
+                
+                if spec_type == 'control' and k == 'steps':
+                    config['steps'] = int(v)
                 else:
-                    # Try to parse as single number, otherwise keep as string
-                    try:
-                        config['params'][k] = float(v)
-                    except ValueError:
+                # Check if this is a vector parameter (contains commas)
+                    if ',' in v and k in ['force', 'torque', 'angular_momentum', 'target', 'position']:
+                        try:
+                            # Strip brackets if present
+                            clean_v = v.strip('[]')
+                            config['params'][k] = [float(x.strip()) for x in clean_v.split(',')]
+                        except ValueError:
+                            config['params'][k] = v
+                    elif k == 'body':
+                        # Keep body as string
                         config['params'][k] = v
+                    else:
+                        # Try to parse as single number, otherwise keep as string
+                        try:
+                            config['params'][k] = float(v)
+                        except ValueError:
+                            config['params'][k] = v
+    
     return config
 
 def create_control(control_type: str, params: Dict[str, Any], body_id: str):
@@ -126,30 +171,48 @@ def create_output(output_type: str, output_params: Dict[str, Any], env: Environm
 def add_body_to_env(env: Environment, body_config: Dict[str, Any]):
     """Add a body to the environment based on configuration."""
     from default_backend import DefaultBody
+    from genesis_backend import GenesisRigidBody
     
     body_type = body_config['type'].lower()
     params = body_config['params']
     
     if hasattr(env, 'add_body'):
-        # Default backend supports adding bodies
-        if body_type == 'sphere':
-            # Default sphere parameters
-            radius = params.get('radius', 0.5)
-            mass = params.get('mass', 1.0)
-            position = params.get('position', [0.0, 0.0, 1.0])
-            if isinstance(position, str):
-                position = [float(x) for x in position.split(',')]
-            position = np.array(position)
-            
-            # Create a DefaultBody with sphere-like properties
-            # For now, we'll use DefaultBody but set initial position
-            body = DefaultBody(mass=mass)
-            body.state.r = position
-            
-            # Add body to environment
-            env.add_body(body)
+        # Try to add body to the environment
+        try:
+            if body_type == 'sphere':
+                # Default sphere parameters
+                radius = params.get('radius', 0.5)
+                mass = params.get('mass', 1.0)
+                position = params.get('position', [0.0, 0.0, 1.0])
+                if isinstance(position, str):
+                    # Strip brackets and split
+                    clean_pos = position.strip('[]')
+                    position = [float(x.strip()) for x in clean_pos.split(',')]
+                position = np.array(position)
+                
+                # For Genesis backend, create a GenesisRigidBody
+                if hasattr(env, 'physics') and hasattr(env.physics, 'add_body'):
+                    # Genesis backend
+                    genesis_config = {
+                        'type': 'sphere',
+                        'mass': mass,
+                        'radius': radius,
+                        'initial_pos': position.tolist()
+                    }
+                    genesis_body = env.physics.add_body(genesis_config)
+                    if genesis_body:
+                        env.add_body(genesis_body)
+                    else:
+                        click.echo(f"⚠️  Warning: Could not add sphere body to Genesis environment")
+                else:
+                    # Default backend
+                    body = DefaultBody(mass=mass)
+                    body.state.r = position
+                    env.add_body(body)
+        except Exception as e:
+            click.echo(f"⚠️  Warning: Could not add body to environment: {e}")
     else:
-        # Genesis backend doesn't support adding bodies dynamically
+        # Environment doesn't support adding bodies
         click.echo(f"⚠️  Warning: {type(env).__name__} backend doesn't support adding bodies dynamically. Body '{body_config}' will be ignored.")
 
 def run_all_tests():

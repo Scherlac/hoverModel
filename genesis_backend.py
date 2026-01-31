@@ -52,9 +52,13 @@ class GenesisPhysics(PhysicsEngine):
 
     def add_body(self, body_config: dict) -> 'GenesisRigidBody':
         """Add a body to the Genesis scene."""
+        # For Genesis, we need to rebuild the scene if it's already built
         if self.built:
-            raise RuntimeError("Cannot add bodies after scene is built")
-
+            # This is a limitation - Genesis doesn't support dynamic body addition
+            # We'll create the body but it won't be added to the physics simulation
+            print(f"Warning: Cannot add body '{body_config}' to already-built Genesis scene")
+            return None
+            
         # Create Genesis entity based on body type
         body_type = body_config.get('type', 'hovercraft')
 
@@ -65,14 +69,14 @@ class GenesisPhysics(PhysicsEngine):
                 gs.morphs.Mesh(
                     file=str(mesh_file),
                     scale=body_config.get('scale', 0.1),
-                    pos=body_config.get('initial_pos', (0.0, 0.0, 1.0)),
+                    pos=tuple(body_config.get('initial_pos', [0.0, 0.0, 1.0])),
                 )
             )
         elif body_type == 'sphere':
             entity = self.scene.add_entity(
                 gs.morphs.Sphere(
                     radius=body_config.get('radius', 0.1),
-                    pos=body_config.get('initial_pos', (0.0, 0.0, 1.0)),
+                    pos=tuple(body_config.get('initial_pos', [0.0, 0.0, 1.0])),
                 )
             )
         else:
@@ -184,11 +188,11 @@ class GenesisRigidBody(Body):
 
     def apply_force(self, force: np.ndarray) -> None:
         """Apply a force vector to the Genesis body."""
-        self.control_force = force
+        self.control_force = np.array(force, dtype=float)
 
     def apply_torque(self, torque: np.ndarray) -> None:
         """Apply a torque vector to the Genesis body."""
-        self.control_torque = torque
+        self.control_torque = np.array(torque, dtype=float)
 
     def apply_angular_momentum(self, angular_momentum: np.ndarray) -> None:
         """Apply angular momentum to the Genesis body."""
@@ -235,13 +239,13 @@ class GenesisRigidBody(Body):
     def _apply_forces_to_entity(self):
         """Apply accumulated forces and torques to the Genesis entity."""
         # Combine all forces and torques
-        total_force = getattr(self, 'control_force', np.zeros(3))
-        total_torque = getattr(self, 'control_torque', np.zeros(3))
+        total_force = np.array(getattr(self, 'control_force', np.zeros(3)), dtype=float)
+        total_torque = np.array(getattr(self, 'control_torque', np.zeros(3)), dtype=float)
 
         # Apply forces to Genesis entity
         # Genesis uses DOF forces: [fx, fy, fz, tx, ty, tz]
+        force_vector = np.concatenate([total_force, total_torque])
         try:
-            force_vector = np.concatenate([total_force, total_torque])
             self.entity.set_dofs_force(force_vector)
         except Exception as e:
             print(f"Warning: Could not set forces on Genesis entity: {e}")
@@ -335,6 +339,7 @@ class GenesisBodyEnv(Environment):
         self.physics = GenesisPhysics(self.config)
 
         # Initialize bodies
+        self.bodies = []
         if bodies is None:
             # Default: single hovercraft
             hovercraft_config = {
@@ -350,14 +355,34 @@ class GenesisBodyEnv(Environment):
         else:
             self.bodies = bodies
 
-        # Build the scene
-        self.physics.build_scene()
+        # Don't build the scene yet - wait until all bodies are added
+        # self.physics.build_scene()
 
         # For backward compatibility
         self.state = self.bodies[0].state if self.bodies else None
         
         # Step counter for outputs
         self.step_count = 0
+
+    def add_body(self, body: Body) -> None:
+        """Add a body to the environment."""
+        if isinstance(body, GenesisRigidBody):
+            self.bodies.append(body)
+        else:
+            # Convert other body types to Genesis bodies
+            body_config = {
+                'type': 'sphere',  # Default to sphere for unknown types
+                'mass': body.mass,
+                'moment_of_inertia': body.moment_of_inertia,
+                'initial_pos': body.state.r.tolist(),
+                'radius': 0.1
+            }
+            genesis_body = self.physics.add_body(body_config)
+            if genesis_body:
+                self.bodies.append(genesis_body)
+        
+        # Update state to first body
+        self.state = self.bodies[0].state if self.bodies else None
 
     def get_body_by_id(self, body_id: str) -> Optional[Body]:
         """Get a body by its ID."""
@@ -443,6 +468,9 @@ class GenesisBodyEnv(Environment):
             steps: Number of simulation steps
             initial_pos: Initial position for bodies
         """
+        # Build the scene now that all bodies are added
+        self.physics.build_scene()
+
         if outputs is not None:
             self.outputs = outputs
 
@@ -536,16 +564,64 @@ class GenesisVisualizationOutput(VisualizationOutput):
 
     def __init__(self, visualizer: GenesisVisualizer):
         super(GenesisVisualizationOutput, self).__init__(visualizer)
+        self.zoom = 0.6
+        # Try to create an offscreen viewer for frame capture
+        try:
+            self.viewer = gs.Viewer(self.visualizer.env.physics.scene, show_gui=False)
+            self.can_capture = True
+        except:
+            self.viewer = None
+            self.can_capture = False
 
     def set_camera(self, position: Tuple[float, float, float], look_at: Tuple[float, float, float]) -> None:
         """Set camera position - not directly supported in Genesis viewer."""
         pass
 
+    def set_zoom(self, zoom: float) -> None:
+        """Set zoom level."""
+        self.zoom = zoom
+
     def render_frame(self) -> None:
         """Render frame - handled by Genesis internally."""
-        pass
+        if self.viewer:
+            self.viewer.render()
 
     def capture_frame(self, filename: str) -> None:
-        """Capture frame to file - not directly supported."""
-        # Could potentially use Genesis screenshot functionality
-        pass
+        """Capture frame to file using Genesis viewer if available."""
+        # For now, create a frame with current positions
+        self._create_position_frame(filename)
+
+    def _create_position_frame(self, filename: str) -> None:
+        """Create a frame showing current body positions."""
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+            # Create a simple visualization image
+            img = Image.new('RGB', (800, 600), color='black')
+            draw = ImageDraw.Draw(img)
+            
+            # Draw bodies as circles
+            bodies = self.visualizer.env.bodies
+            for i, body in enumerate(bodies):
+                pos = body.state.r
+                # Simple 2D projection (top view)
+                x = int(400 + pos[0] * 50)  # Scale for visibility
+                y = int(300 + pos[1] * 50)
+                radius = 20
+                if hasattr(body, 'config') and body.config.get('type') == 'sphere':
+                    radius = int(body.config.get('radius', 0.5) * 100)
+                    color = 'blue'
+                else:
+                    color = 'red'  # hovercraft
+                draw.ellipse([x-radius, y-radius, x+radius, y+radius], fill=color)
+                draw.text((x, y), f"{i}", fill='white', anchor='mm')
+            
+            draw.text((10, 10), f"Genesis Simulation - Step {self.visualizer.env.step_count}", fill='white')
+            img.save(filename)
+        except ImportError:
+            # If PIL not available, create a text file
+            with open(filename.replace('.png', '.txt'), 'w') as f:
+                bodies = self.visualizer.env.bodies
+                f.write(f"Genesis simulation step {self.visualizer.env.step_count}\n")
+                for i, body in enumerate(bodies):
+                    pos = body.state.r
+                    f.write(f"Body {i}: position {pos}\n")

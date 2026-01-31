@@ -93,8 +93,16 @@ class VideoSimulationOutput(SimulationOutput):
         self.frames_dir = "frames"
         self.frame_count = 0
         
-        self.visualizer : Open3DVisualizer = env.get_specific_visualizer(Open3DVisualizer)
-        self.visualization_output : Open3DVisualizationOutput = self.visualizer.get_visualization_output()
+        # Choose appropriate visualizer based on environment type
+        if hasattr(env, 'physics') and hasattr(env.physics, 'scene'):
+            # Genesis environment - use Genesis visualizer
+            from genesis_backend import GenesisVisualizer
+            self.visualizer = env.get_specific_visualizer(GenesisVisualizer)
+        else:
+            # Default environment - use Open3D visualizer
+            self.visualizer = env.get_specific_visualizer(Open3DVisualizer)
+            
+        self.visualization_output = self.visualizer.get_visualization_output()
         print(f"Live output using visualizer: {self.visualizer.__class__.__name__} and output: {self.visualization_output.__class__.__name__}")
 
 
@@ -134,16 +142,60 @@ class VideoSimulationOutput(SimulationOutput):
     def finalize(self) -> None:
         # Create video with ffmpeg
         success = False
-        try:
-            result = os.system(f'ffmpeg -y -framerate {self.fps} -i {self.frames_dir}/frame_%04d.png '
-                             f'-vf "scale=1920:1080" -c:v libx264 -pix_fmt yuv420p {self.video_name}')
-            if result == 0:
-                print(f"✅ Video created successfully: {self.video_name}")
-                success = True
-            else:
-                print(f"❌ FFmpeg failed with exit code {result}")
-        except Exception as e:
-            print(f"❌ FFmpeg error: {e}")
+        if self.frame_count > 0:
+            try:
+                # Use subprocess for better error handling
+                import subprocess
+                
+                # Try a simpler ffmpeg command first
+                cmd = [
+                    'ffmpeg', '-y', 
+                    '-framerate', str(self.fps), 
+                    '-i', f'{self.frames_dir}/frame_%04d.png',
+                    '-c:v', 'libx264', 
+                    '-pix_fmt', 'yuv420p',
+                    '-vf', 'scale=1280:720',  # Smaller resolution
+                    self.video_name
+                ]
+                
+                print(f"Running FFmpeg command: {' '.join(cmd)}")
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+                
+                if result.returncode == 0:
+                    print(f"✅ Video created successfully: {self.video_name}")
+                    success = True
+                else:
+                    print(f"❌ FFmpeg failed with exit code {result.returncode}")
+                    print(f"FFmpeg stdout: {result.stdout}")
+                    print(f"FFmpeg stderr: {result.stderr}")
+                    
+                    # Try alternative command without scaling
+                    print("Trying alternative FFmpeg command without scaling...")
+                    cmd_simple = [
+                        'ffmpeg', '-y', 
+                        '-framerate', str(self.fps), 
+                        '-i', f'{self.frames_dir}/frame_%04d.png',
+                        '-c:v', 'libx264', 
+                        '-pix_fmt', 'yuv420p',
+                        self.video_name
+                    ]
+                    
+                    result_simple = subprocess.run(cmd_simple, capture_output=True, text=True, timeout=300)
+                    if result_simple.returncode == 0:
+                        print(f"✅ Video created successfully with simple command: {self.video_name}")
+                        success = True
+                    else:
+                        print(f"❌ Simple FFmpeg command also failed with exit code {result_simple.returncode}")
+                        print(f"FFmpeg stderr: {result_simple.stderr}")
+                        
+            except subprocess.TimeoutExpired:
+                print("❌ FFmpeg timed out after 5 minutes")
+            except FileNotFoundError:
+                print("❌ FFmpeg not found. Please install FFmpeg and add it to your PATH")
+            except Exception as e:
+                print(f"❌ FFmpeg error: {e}")
+        else:
+            print("⚠️  No frames captured, cannot create video")
 
         # Cleanup frames directory
         import shutil
