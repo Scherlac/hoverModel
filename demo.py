@@ -7,6 +7,7 @@ from simulation_outputs import LoggingSimulationOutput, LiveVisualizationOutput,
 from default_backend import (
     NewtonianPhysics, DefaultBodyEnv
 )
+from genesis_backend import GenesisBodyEnv
 
 runner = DemoRunner()
 
@@ -18,18 +19,22 @@ def cli(ctx):
 @cli.command()
 @click.option('--control', 'controls', multiple=True, required=True)
 @click.option('--output', 'outputs', multiple=True, required=True)
+@click.option('--backend', default='default', type=click.Choice(['default', 'genesis']), help='Physics backend to use')
 @click.option('--start-x', default=0.0)
 @click.option('--start-y', default=0.0)
 @click.option('--start-z', default=1.0)
-def run(controls, outputs, start_x, start_y, start_z):
+def run(controls, outputs, backend, start_x, start_y, start_z):
     initial_pos = (start_x, start_y, start_z)
     control_configs = [parse_spec(spec, 'control') for spec in controls]
     output_configs = [parse_spec(spec, 'output') for spec in outputs]
     
-    click.echo(f"🚀 Running {len(control_configs)} control(s), {len(output_configs)} output(s)")
+    click.echo(f"🚀 Running {len(control_configs)} control(s), {len(output_configs)} output(s) with {backend} backend")
     
-    # Create environment first
-    env = DefaultBodyEnv()
+    # Create environment based on backend choice
+    if backend == 'genesis':
+        env = GenesisBodyEnv()
+    else:
+        env = DefaultBodyEnv()
     
     # Create outputs (they register themselves with the environment)
     output_instances = [create_output(oc['type'], oc['params'], env) for oc in output_configs]

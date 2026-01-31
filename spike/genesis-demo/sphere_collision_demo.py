@@ -109,7 +109,7 @@ def main():
     # Add hoverBody mesh from assets folder
     hoverbody = scene.add_entity(
         gs.morphs.Mesh(
-            file="assets/hoverBody_main.obj",
+            file="../../assets/hoverBody_main.obj",
             scale=0.1,  # Scale down the mesh
             pos=(0.0, 1.0, 0.2),  # Position above the collision area
             euler=(30.0, 0.0, 0.0),  # Rotate 30° around x-axis
