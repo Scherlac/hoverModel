@@ -1,6 +1,6 @@
-# DefaultBody Simulation
+# HoverModel Simulation
 
-A simple reinforcement learning environment simulation for a hovercraft using Open3D for 3D visualization.
+A reinforcement learning environment simulation for a hovercraft with multiple physics backends (Open3D + NumPy or Genesis) and 3D visualization capabilities.
 
 ## Current Status
 
@@ -23,6 +23,7 @@ A simple reinforcement learning environment simulation for a hovercraft using Op
 ⚠️ **Requirements:**
 - Python >= 3.12 (for Open3D compatibility)
 - Open3D installed via `pip install -e .`
+- **Optional**: Genesis physics engine (`pip install genesis-world`) for advanced physics simulation
 
 ## Installation
 
@@ -38,10 +39,20 @@ pip install -e .
 
 This installs numpy, Open3D for the physics simulation and 3D visualization, and Click for the CLI interface.
 
+### Optional: Genesis Backend
+For advanced physics simulation with collision detection and complex rigid body dynamics:
+```bash
+pip install genesis-world
+```
+
+The Genesis backend provides more sophisticated physics capabilities including automatic collision detection, complex mesh support, and potential GPU acceleration.
+
 ## Project Structure
 
 - `main.py` - Legacy entry point for basic visualization
 - `demo.py` - CLI interface for running demonstrations with modular control and output systems
+- `default_backend.py` - Default physics backend using Open3D + NumPy with Newtonian physics
+- `genesis_backend.py` - Alternative physics backend using Genesis engine with advanced physics simulation
 - `environment.py` - Main environment orchestrating physics, bodies, and visualization
 - `body.py` - Physical body representations with `Body` and `DefaultBody` classes
 - `state.py` - Clean vector-based state representation with `BodyState` class
@@ -59,6 +70,16 @@ This installs numpy, Open3D for the physics simulation and 3D visualization, and
 Run physics tests with console output:
 ```bash
 python demo.py run --control linear:force=1.0:steps=50 --output console
+```
+
+### Backend Selection
+Choose between physics backends:
+```bash
+# Default Open3D + NumPy backend (faster, simpler physics)
+python demo.py run --control hovering --output console --backend default
+
+# Genesis backend (advanced physics with collision detection)
+python demo.py run --control hovering --output console --backend genesis
 ```
 
 ### Individual Demonstrations
@@ -132,6 +153,10 @@ The demo system features a comprehensive Click-based CLI for easy experimentatio
 **Available Commands:**
 - `run` - Execute simulation with specified control and output
 
+**Backend Options:**
+- `--backend default` - Use Open3D + NumPy physics (default, faster)
+- `--backend genesis` - Use Genesis physics engine (advanced features)
+
 **Control Types:**
 - `linear:force=<float>:steps=<int>` - Constant forward thrust
 - `rotational:torque=<float>:steps=<int>` - Pure rotational movement  
@@ -149,6 +174,10 @@ The demo system features a comprehensive Click-based CLI for easy experimentatio
 # Basic demonstrations
 python demo.py run --control linear:force=1.0:steps=50 --output console
 python demo.py run --control chaotic:steps=100 --output console
+
+# Backend selection
+python demo.py run --control hovering --output console --backend default
+python demo.py run --control hovering --output console --backend genesis
 
 # Video creation with automatic cleanup
 python demo.py run --control linear:force=10.0:steps=100 --output video:filename=demo.mp4:fps=10
@@ -179,10 +208,17 @@ The codebase follows SOLID principles with a highly composable, modular architec
   - `BodyState` - Clean vector-based state with r/v vectors and theta/omega scalars
   - Single source of truth for state format and operations
   - Provides semantic vector accessors and validation
-- **`physics.py`**: Physics engine with abstract `PhysicsEngine` base class
-  - `NewtonianPhysics` - General Newtonian physics for any body type
-  - Multi-body physics support with interaction handling
-  - Vectorized calculations for performance
+- **`default_backend.py`**: Default physics backend implementation
+  - `NewtonianPhysics` - General Newtonian physics using Open3D + NumPy
+  - `DefaultBodyEnv` - Environment with Open3D visualization
+  - Fast, lightweight physics simulation
+- **`genesis_backend.py`**: Advanced physics backend using Genesis engine
+  - `GenesisPhysics` - Genesis-based physics with collision detection
+  - `GenesisRigidBody` - Rigid body with complex mesh support
+  - `GenesisBodyEnv` - Environment with advanced physics capabilities
+- **`physics.py`**: Abstract physics engine interfaces
+  - `PhysicsEngine` - Abstract base class for physics implementations
+  - Multi-backend support through common interfaces
 - **`control_sources.py`**: Control signal generators
   - `ControlSourceFactory` - Factory pattern for creating control sources
   - `LinearMovementControl` - Constant forward thrust
@@ -234,6 +270,35 @@ The physics engine uses **body-based Newtonian physics** with vectorized NumPy o
 - Environment manages body collections
 
 This provides better performance and cleaner code compared to scalar operations, with clear separation between "what a body is" and "how physics works".
+
+### Multiple Physics Backends
+
+The project supports two physics backends with different capabilities:
+
+**Default Backend (Open3D + NumPy):**
+- **Performance**: Fast, lightweight simulation
+- **Physics**: Newtonian physics with custom force models
+- **Visualization**: Open3D-based 3D rendering
+- **Features**: Boundary collision, friction, custom force fields
+- **Use Case**: Quick prototyping, RL training, simple demonstrations
+
+**Genesis Backend:**
+- **Performance**: Advanced physics engine with GPU acceleration potential
+- **Physics**: Realistic rigid body dynamics with automatic collision detection
+- **Visualization**: Built-in OpenGL renderer with real-time performance
+- **Features**: Complex mesh support, multi-body collisions, quaternion rotations
+- **Use Case**: Advanced simulations, complex geometries, realistic physics
+
+**Backend Selection:**
+```python
+# Default backend
+from default_backend import DefaultBodyEnv
+env = DefaultBodyEnv()
+
+# Genesis backend
+from genesis_backend import GenesisBodyEnv
+env = GenesisBodyEnv()
+```
 
 ### Modular Demo System
 The demonstration system uses composition to combine control sources with output handlers, accessible through both programmatic API and CLI:
@@ -453,13 +518,17 @@ compact_physics = NewtonianPhysics({
 
 ### Medium Term
 3. **Enhanced Physics**
-   - Add more realistic aerodynamic effects
-   - Implement collision detection with obstacles
-   - Add wind disturbances
+   - Add more realistic aerodynamic effects to default backend
+   - Implement collision detection with obstacles (Genesis backend already supports this)
+   - Add wind disturbances and environmental effects
+   - Leverage Genesis backend for complex multi-body simulations
+   - Compare and optimize physics accuracy between backends
 
 4. **Performance Optimization**
-   - Optimize visualization rendering
+   - Optimize visualization rendering for both backends
    - Add parallel simulation capabilities
+   - GPU acceleration for Genesis backend
+   - Benchmark and profile different backend performance
 
 ### Long Term
 5. **Advanced Features**
@@ -552,6 +621,8 @@ compact_physics = NewtonianPhysics({
 
 The physics simulation and modular demonstration system are complete and tested. The codebase follows clean architecture principles with separated concerns. Contributions welcome for:
 - Additional control source implementations (new movement patterns)
+- Alternative physics backends (extending the multi-backend architecture)
+- Enhanced Genesis backend features and optimizations
 - Alternative visualization backends
 - Enhanced CLI features and commands
 - RL integration and reward function design
@@ -560,9 +631,11 @@ The physics simulation and modular demonstration system are complete and tested.
 - Multi-agent scenarios and advanced features
 
 **Architecture Notes:**
+- Physics backends belong in separate modules (e.g., `genesis_backend.py`, `bullet_backend.py`)
 - Output handlers belong in `simulation_outputs.py`
 - Demo orchestration logic belongs in `demo_runner.py`
 - Keep file-level separation of concerns when adding new features
+- New backends should implement the abstract interfaces in `components.py`
 
 ## License
 
