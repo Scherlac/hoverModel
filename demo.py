@@ -2,7 +2,7 @@ import click
 import numpy as np
 from control_sources import ControlSourceFactory
 from demo_runner import DemoRunner
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from components import Environment
 from simulation_outputs import LoggingSimulationOutput, LiveVisualizationOutput, VideoSimulationOutput
 from default_backend import (
@@ -78,7 +78,7 @@ def run(controls, outputs, bodies, backend, start_x, start_y, start_z, steps):
 def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
     parts = spec.split(':')
     config = {'type': parts[0], 'params': {}}
-    if spec_type == 'control': config['steps'] = 50
+    if spec_type == 'control': config['steps'] = [None, None]  # Default: active entire simulation
     
     if len(parts) > 1:
         # For output specs, parameters are separated by ':', for control specs by ','
@@ -110,12 +110,8 @@ def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
                 k = k.strip()
                 v = v.strip()
                 
-                if spec_type == 'control' and k == 'steps':
-                    # Try to parse as int, otherwise keep as string (for ranges like "10-50")
-                    try:
-                        config['steps'] = int(v)
-                    except ValueError:
-                        config['steps'] = v
+                if k == 'steps':
+                    config['steps'] = parse_steps_range(v)
                 else:
                 # Check if this is a vector parameter (contains commas)
                     if ',' in v and k in ['force', 'torque', 'angular_momentum', 'target', 'position']:
@@ -129,21 +125,34 @@ def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
                         # Keep body as string
                         config['params'][k] = v
                     else:
-                        # Handle steps parameter for outputs and bodies
-                        if k == 'steps':
-                            # Try to parse as int, otherwise keep as string (for ranges like "10-50")
-                            try:
-                                config['steps'] = int(v)
-                            except ValueError:
-                                config['steps'] = v
-                        else:
-                            # Try to parse as single number, otherwise keep as string
-                            try:
-                                config['params'][k] = float(v)
-                            except ValueError:
-                                config['params'][k] = v
+                        # Try to parse as single number, otherwise keep as string
+                        try:
+                            config['params'][k] = float(v)
+                        except ValueError:
+                            config['params'][k] = v
     
     return config
+
+
+def parse_steps_range(steps_str: str) -> List[Optional[int]]:
+    """Parse steps range string into [start, end] array format.
+    
+    Examples:
+    - "10-50" -> [10, 50]
+    - "25" -> [25, None] (from step 25 to end)
+    - "-50" -> [None, 50] (from start to step 50)
+    - "10-" -> [10, None] (from step 10 to end)
+    """
+    if '-' in steps_str:
+        parts = steps_str.split('-')
+        if len(parts) == 2:
+            start_str, end_str = parts
+            start = int(start_str) if start_str else None
+            end = int(end_str) if end_str else None
+            return [start, end]
+    else:
+        # Single number - treat as start only
+        return [int(steps_str), None]
 
 def create_control(control_type: str, params: Dict[str, Any], body_id: str):
     ct = control_type.lower()

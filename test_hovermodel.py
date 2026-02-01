@@ -150,18 +150,18 @@ def test_control_step_range_parsing():
     config = parse_spec("linear:force=5.0,steps=10-50", "control")
     assert config['type'] == 'linear'
     assert config['params']['force'] == 5.0
-    assert config['steps'] == "10-50"  # Should be parsed as string for now
+    assert config['steps'] == [10, 50]  # Range: start=10, end=50
     
     # Test single step start
     config = parse_spec("rotational:torque=1.0,steps=25", "control")
     assert config['type'] == 'rotational'
     assert config['params']['torque'] == 1.0
-    assert config['steps'] == 25  # Single numbers are parsed as int
+    assert config['steps'] == [25, None]  # Start from step 25, no end limit
     
     # Test no steps specified (default behavior)
     config = parse_spec("hovering", "control")
     assert config['type'] == 'hovering'
-    assert config['steps'] == 50  # Default value
+    assert config['steps'] == [None, None]  # Active entire simulation
 
 
 def test_output_step_range_parsing():
@@ -173,12 +173,12 @@ def test_output_step_range_parsing():
     assert config['type'] == 'video'
     assert config['params']['filename'] == 'test.mp4'
     assert config['params']['fps'] == 10.0
-    assert config['steps'] == "5-30"  # Ranges are kept as strings  # Should be parsed as string
+    assert config['steps'] == [5, 30]  # Range: start=5, end=30
     
     # Test console output with step range
     config = parse_spec("console:steps=10", "output")
     assert config['type'] == 'console'
-    assert config['steps'] == 10  # Single numbers are parsed as int
+    assert config['steps'] == [10, None]  # Start from step 10, no end limit
 
 
 def test_body_step_range_parsing():
@@ -190,7 +190,7 @@ def test_body_step_range_parsing():
     assert config['type'] == 'sphere'
     assert config['params']['radius'] == 0.5
     assert config['params']['mass'] == 2.0
-    assert config['steps'] == "20-80"  # Ranges are kept as strings
+    assert config['steps'] == [20, 80]  # Range: start=20, end=80
 
 
 @pytest.mark.skip(reason="Step range feature not yet implemented")
