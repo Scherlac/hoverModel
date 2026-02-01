@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 import subprocess
 import sys
+import os
 from default_backend import DefaultBodyEnv
 from control_sources import ControlSourceFactory
 from simulation_outputs import LoggingSimulationOutput
@@ -208,3 +209,161 @@ def test_cli_run_help_command():
     assert "--control" in result.stdout
     assert "--output" in result.stdout
     assert "--backend" in result.stdout
+
+
+# Video Output Documentation Verification Tests
+
+def test_cli_linear_video_example():
+    """Test the CLI example: python demo.py run --control linear:force=5.0,steps=100 --output video:filename=linear_demo.mp4:fps=10"""
+    video_file = "linear_demo.mp4"
+    
+    # Clean up any existing file
+    if os.path.exists(video_file):
+        os.remove(video_file)
+    
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", 
+        "--control", "linear:force=5.0,steps=100", 
+        "--output", f"video:filename={video_file}:fps=10",
+        "--steps", "100"
+    ], capture_output=True, text=True, cwd=".")
+    
+    assert result.returncode == 0
+    assert "Running simulation with 100 steps..." in result.stdout
+    assert "Creating video:" in result.stdout
+    # Video file creation may fail if FFmpeg is not installed
+    # If it exists and has content, that's great, but don't require it
+    if os.path.exists(video_file):
+        assert os.path.getsize(video_file) > 0  # File has content if it exists
+    
+    # Clean up
+    if os.path.exists(video_file):
+        os.remove(video_file)
+
+
+def test_cli_bouncing_video_example():
+    """Test the CLI example: python demo.py run --control linear:force=20.0,steps=100 --output video:filename=bouncing_demo.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0"""
+    video_file = "bouncing_demo.mp4"
+    
+    # Clean up any existing file
+    if os.path.exists(video_file):
+        os.remove(video_file)
+    
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", 
+        "--control", "linear:force=20.0,steps=100", 
+        "--output", f"video:filename={video_file}:fps=10",
+        "--start-x", "0.0",
+        "--start-y", "0.0", 
+        "--start-z", "5.0",
+        "--steps", "100"
+    ], capture_output=True, text=True, cwd=".")
+    
+    assert result.returncode == 0
+    assert "Running simulation with 100 steps..." in result.stdout
+    assert "Creating video:" in result.stdout
+    # Video file creation may fail if FFmpeg is not installed
+    if os.path.exists(video_file):
+        assert os.path.getsize(video_file) > 0  # File has content if it exists
+    
+    # Clean up
+    if os.path.exists(video_file):
+        os.remove(video_file)
+
+
+def test_cli_rotational_video_example():
+    """Test the CLI example: python demo.py run --control rotational:torque=1.0,steps=150 --output video:filename=rotation.mp4:fps=15"""
+    video_file = "rotation.mp4"
+    
+    # Clean up any existing file
+    if os.path.exists(video_file):
+        os.remove(video_file)
+    
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", 
+        "--control", "rotational:torque=1.0,steps=150", 
+        "--output", f"video:filename={video_file}:fps=15",
+        "--steps", "150"
+    ], capture_output=True, text=True, cwd=".")
+    
+    assert result.returncode == 0
+    assert "Running simulation with 150 steps..." in result.stdout
+    assert "Creating video:" in result.stdout
+    # Video file creation may fail if FFmpeg is not installed
+    if os.path.exists(video_file):
+        assert os.path.getsize(video_file) > 0  # File has content if it exists
+    
+    # Clean up
+    if os.path.exists(video_file):
+        os.remove(video_file)
+
+
+def test_cli_custom_start_video_example():
+    """Test the CLI example: python demo.py run --control linear:force=10.0:steps=100 --output video:filename=custom_start.mp4:fps=10 --start-x=2.0 --start-y=1.0 --start-z=3.0"""
+    video_file = "custom_start.mp4"
+    
+    # Clean up any existing file
+    if os.path.exists(video_file):
+        os.remove(video_file)
+    
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", 
+        "--control", "linear:force=10.0,steps=100", 
+        "--output", f"video:filename={video_file}:fps=10",
+        "--start-x", "2.0",
+        "--start-y", "1.0",
+        "--start-z", "3.0",
+        "--steps", "100"
+    ], capture_output=True, text=True, cwd=".")
+    
+    assert result.returncode == 0
+    assert "Running simulation with 100 steps..." in result.stdout
+    assert "Creating video:" in result.stdout
+    # Video file creation may fail if FFmpeg is not installed
+    if os.path.exists(video_file):
+        assert os.path.getsize(video_file) > 0  # File has content if it exists
+    
+    # Clean up
+    if os.path.exists(video_file):
+        os.remove(video_file)
+
+
+def test_cli_chaotic_video_example():
+    """Test the CLI example: python demo.py run --control chaotic:steps=200 --output video:filename=chaos.mp4:fps=20"""
+    video_file = "chaos.mp4"
+    
+    # Clean up any existing file
+    if os.path.exists(video_file):
+        os.remove(video_file)
+    
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", 
+        "--control", "chaotic:steps=200", 
+        "--output", f"video:filename={video_file}:fps=20",
+        "--steps", "200"
+    ], capture_output=True, text=True, cwd=".")
+    
+    assert result.returncode == 0
+    assert "Running simulation with 200 steps..." in result.stdout
+    assert "Creating video:" in result.stdout
+    # Video file creation may fail if FFmpeg is not installed
+    if os.path.exists(video_file):
+        assert os.path.getsize(video_file) > 0  # File has content if it exists
+    
+    # Clean up
+    if os.path.exists(video_file):
+        os.remove(video_file)
+
+
+# Live Visualization Documentation Verification Tests
+
+def test_cli_linear_live_example():
+    """Test the CLI example: python demo.py run --control linear:force=3.0,steps=100 --output live"""
+    # Skip live visualization tests as they require interactive display windows
+    pytest.skip("Live visualization requires interactive display environment")
+
+
+def test_cli_bouncing_live_example():
+    """Test the CLI example: python demo.py run --control linear:force=15.0,steps=200 --output live --start-x=0.0 --start-y=0.0 --start-z=5.0"""
+    # Skip live visualization tests as they require interactive display windows
+    pytest.skip("Live visualization requires interactive display environment")

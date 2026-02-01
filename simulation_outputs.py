@@ -54,7 +54,7 @@ class LoggingSimulationOutput(SimulationOutput):
         # Display events if any occurred
         if self.env.state.events:
             for event in self.env.state.events:
-                print(f"      ⚡ EVENT: {event.label} at ({event.location[0]:.2f},{event.location[1]:.2f},{event.location[2]:.2f}) "
+                print(f"      EVENT: {event.label} at ({event.location[0]:.2f},{event.location[1]:.2f},{event.location[2]:.2f}) "
                       f"sources: {event.sources}")
 
         if step % self.log_interval == 0:
@@ -125,7 +125,7 @@ class VideoSimulationOutput(SimulationOutput):
         # Display events if any occurred
         if self.env.state.events:
             for event in self.env.state.events:
-                print(f"⚡ EVENT: {event.label} at ({event.location[0]:.2f},{event.location[1]:.2f},{event.location[2]:.2f}) "
+                print(f"EVENT: {event.label} at ({event.location[0]:.2f},{event.location[1]:.2f},{event.location[2]:.2f}) "
                       f"sources: {event.sources}")
 
         if step % max(1, 25 // self.fps) == 0:  # Frame capture rate
@@ -134,7 +134,7 @@ class VideoSimulationOutput(SimulationOutput):
             try:
                 self.visualization_output.capture_frame(frame_path)
                 self.frame_count += 1
-                print(f"✅ Frame {self.frame_count-1} captured successfully: {os.path.exists(frame_path)}")
+                print(f"Frame {self.frame_count-1} captured successfully: {os.path.exists(frame_path)}")
             except Exception as e:
                 # If frame capture fails, skip this frame
                 print(f"Warning: Frame capture failed at step {step}: {e}")
@@ -162,10 +162,10 @@ class VideoSimulationOutput(SimulationOutput):
                 result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
                 
                 if result.returncode == 0:
-                    print(f"✅ Video created successfully: {self.video_name}")
+                    print(f"Video created successfully: {self.video_name}")
                     success = True
                 else:
-                    print(f"❌ FFmpeg failed with exit code {result.returncode}")
+                    print(f"FFmpeg failed with exit code {result.returncode}")
                     print(f"FFmpeg stdout: {result.stdout}")
                     print(f"FFmpeg stderr: {result.stderr}")
                     
@@ -182,18 +182,18 @@ class VideoSimulationOutput(SimulationOutput):
                     
                     result_simple = subprocess.run(cmd_simple, capture_output=True, text=True, timeout=300)
                     if result_simple.returncode == 0:
-                        print(f"✅ Video created successfully with simple command: {self.video_name}")
+                        print(f"Video created successfully with simple command: {self.video_name}")
                         success = True
                     else:
-                        print(f"❌ Simple FFmpeg command also failed with exit code {result_simple.returncode}")
+                        print(f"Simple FFmpeg command also failed with exit code {result_simple.returncode}")
                         print(f"FFmpeg stderr: {result_simple.stderr}")
                         
             except subprocess.TimeoutExpired:
-                print("❌ FFmpeg timed out after 5 minutes")
+                print("FFmpeg timed out after 5 minutes")
             except FileNotFoundError:
-                print("❌ FFmpeg not found. Please install FFmpeg and add it to your PATH")
+                print("FFmpeg not found. Please install FFmpeg and add it to your PATH")
             except Exception as e:
-                print(f"❌ FFmpeg error: {e}")
+                print(f"FFmpeg error: {e}")
         else:
             print("⚠️  No frames captured, cannot create video")
 
@@ -206,7 +206,7 @@ class VideoSimulationOutput(SimulationOutput):
             except Exception as e:
                 print(f"⚠️  Warning: Could not remove frames directory: {e}")
         elif not success:
-            print(f"📁 Frames saved in '{self.frames_dir}' directory for debugging (video creation failed)")
+            print(f"Frames saved in '{self.frames_dir}' directory for debugging (video creation failed)")
 
 
 class LiveVisualizationOutput(SimulationOutput):
@@ -228,14 +228,14 @@ class LiveVisualizationOutput(SimulationOutput):
             )
             self.visualization_output.set_zoom(0.8)
 
-        print("🎮 Starting live visualization...")
+        print("Starting live visualization...")
         print("Press 'q' or close the window to exit")
 
     def process_step(self, step: int, control: Tuple[float, float]) -> None:
         # Display events if any occurred
         if self.env.state.events:
             for event in self.env.state.events:
-                print(f"⚡ EVENT: {event.label} at ({event.location[0]:.2f},{event.location[1]:.2f},{event.location[2]:.2f}) "
+                print(f"EVENT: {event.label} at ({event.location[0]:.2f},{event.location[1]:.2f},{event.location[2]:.2f}) "
                       f"sources: {event.sources}")
 
         # Update visualization
@@ -251,6 +251,6 @@ class LiveVisualizationOutput(SimulationOutput):
                 raise KeyboardInterrupt("Visualization window closed")
 
     def finalize(self) -> None:
-        print("✅ Live visualization completed")
+        print("Live visualization completed")
         if self.visualizer:
             self.visualizer.close()
