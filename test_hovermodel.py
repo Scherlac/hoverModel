@@ -5,9 +5,24 @@ import sys
 import os
 import shutil
 from default_backend import DefaultBodyEnv
+from genesis_backend import GenesisBodyEnv
 from control_sources import ControlSourceFactory
 from simulation_outputs import LoggingSimulationOutput
 from demo import parse_spec
+
+
+@pytest.fixture(params=['default', 'genesis'])
+def backend_env(request):
+    """Fixture that provides both default and genesis backend environments."""
+    if request.param == 'genesis':
+        env = GenesisBodyEnv()
+    else:
+        env = DefaultBodyEnv()
+    yield env
+
+
+def check_ffmpeg_available():
+    """Check if FFmpeg is available on the system."""
 
 
 def check_ffmpeg_available():
@@ -29,9 +44,9 @@ def cleanup_frames_dir():
         shutil.rmtree(frames_dir)
 
 
-def test_linear_control_causes_movement():
+def test_linear_control_causes_movement(backend_env):
     """Test that linear control with positive force moves the body forward."""
-    env = DefaultBodyEnv()
+    env = backend_env
     body_id = env.bodies[0].id
     print(f"body_id: {body_id}")
     control = ControlSourceFactory.create_linear(body_id, 1.0)
@@ -45,23 +60,23 @@ def test_linear_control_causes_movement():
     assert abs(final_pos[0] - initial_pos[0]) > 0.01  # Significant movement
 
 
-def test_rotational_control_changes_orientation():
+def test_rotational_control_changes_orientation(backend_env):
     """Test that rotational control changes the body's orientation."""
-    env = DefaultBodyEnv()
+    env = backend_env
     body_id = env.bodies[0].id
-    control = ControlSourceFactory.create_rotational(body_id, 1.0)  # Stronger torque
+    control = ControlSourceFactory.create_rotational(body_id, 10.0)  # Much stronger torque
     
     initial_theta = env.bodies[0].state.theta
     env.run_simulation_with_controls([control], steps=20)
     final_theta = env.bodies[0].state.theta
     
-    # Orientation should have changed
-    assert abs(final_theta - initial_theta) > 0.01
+    # Orientation should have changed significantly
+    assert abs(final_theta - initial_theta) > 1.0, f"Angle should change significantly, got {abs(final_theta - initial_theta)}"
 
 
-def test_hovering_control_maintains_stability():
+def test_hovering_control_maintains_stability(backend_env):
     """Test that hovering control keeps the body relatively stable."""
-    env = DefaultBodyEnv()
+    env = backend_env
     body_id = env.bodies[0].id
     control = ControlSourceFactory.create_hovering(body_id)
     
@@ -73,9 +88,9 @@ def test_hovering_control_maintains_stability():
     assert np.allclose(final_pos, initial_pos, atol=0.1)
 
 
-def test_simulation_runs_without_errors():
+def test_simulation_runs_without_errors(backend_env):
     """Test that simulation completes without raising exceptions."""
-    env = DefaultBodyEnv()
+    env = backend_env
     body_id = env.bodies[0].id
     control = ControlSourceFactory.create_linear(body_id, 0.5)
     
@@ -83,9 +98,9 @@ def test_simulation_runs_without_errors():
     env.run_simulation_with_controls([control], steps=10)
 
 
-def test_console_output_generation():
+def test_console_output_generation(backend_env):
     """Test that console output handler works without errors."""
-    env = DefaultBodyEnv()
+    env = backend_env
     body_id = env.bodies[0].id
     control = ControlSourceFactory.create_linear(body_id, 1.0)
     output = LoggingSimulationOutput(env)
@@ -97,9 +112,9 @@ def test_console_output_generation():
     assert True
 
 
-def test_boundary_collision():
+def test_boundary_collision(backend_env):
     """Test that body bounces off boundaries."""
-    env = DefaultBodyEnv()
+    env = backend_env
     body_id = env.bodies[0].id
     # Start near boundary
     env.bodies[0].state.r = np.array([4.5, 0.0, 1.0])
@@ -114,9 +129,9 @@ def test_boundary_collision():
     assert 0 <= final_pos[2] <= 10
 
 
-def test_sinusoidal_control():
+def test_sinusoidal_control(backend_env):
     """Test that sinusoidal control produces oscillating movement."""
-    env = DefaultBodyEnv()
+    env = backend_env
     body_id = env.bodies[0].id
     control = ControlSourceFactory.create_sinusoidal(body_id)
     
@@ -127,9 +142,9 @@ def test_sinusoidal_control():
     assert abs(final_pos[0]) > 0.01 or abs(final_pos[1]) > 0.01
 
 
-def test_chaotic_control():
+def test_chaotic_control(backend_env):
     """Test that chaotic control produces unpredictable movement."""
-    env = DefaultBodyEnv()
+    env = backend_env
     body_id = env.bodies[0].id
     control = ControlSourceFactory.create_chaotic(body_id)
     

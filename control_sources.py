@@ -481,24 +481,3 @@ class ControlSourceFactory:
     @staticmethod
     def create_combined(id: str, controls: Dict[str, Any], steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
         return CombinedControl(id, controls, steps_range)
-    """Factory for creating control sources."""
-
-    @staticmethod
-    def create_hovering(id: str) -> ControlSource:
-        return HoveringControl(id)
-
-    @staticmethod
-    def create_linear(id: str, forward_force: float = 0.8, steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
-        return LinearMovementControl(id, forward_force, steps_range)
-
-    @staticmethod
-    def create_rotational(id: str, rotation_torque: float = 0.3, steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
-        return RotationalControl(id, rotation_torque, steps_range)
-
-    @staticmethod
-    def create_sinusoidal(id: str, steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
-        return SinusoidalControl(id, steps_range=steps_range)
-
-    @staticmethod
-    def create_chaotic(id: str, steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
-        return ChaoticControl(id, steps_range=steps_range)

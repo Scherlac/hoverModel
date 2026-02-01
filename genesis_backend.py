@@ -246,14 +246,9 @@ class GenesisRigidBody(Body):
         # Genesis uses DOF forces: [fx, fy, fz, tx, ty, tz]
         force_vector = np.concatenate([total_force, total_torque])
         try:
-            self.entity.set_dofs_force(force_vector)
+            self.entity.control_dofs_force(force_vector)
         except Exception as e:
             print(f"Warning: Could not set forces on Genesis entity: {e}")
-            # Try alternative method
-            try:
-                self.entity.control_dofs_force(force_vector)
-            except Exception as e2:
-                print(f"Warning: Alternative force method also failed: {e2}")
 
     def set_control(self, action: np.ndarray):
         """Set control forces and torques."""
@@ -270,14 +265,9 @@ class GenesisRigidBody(Body):
         # Genesis uses DOF forces: [fx, fy, fz, tx, ty, tz]
         try:
             force_vector = np.concatenate([self.control_force, self.control_torque])
-            self.entity.set_dofs_force(force_vector)
+            self.entity.control_dofs_force(force_vector)
         except Exception as e:
             print(f"Warning: Could not set forces on Genesis entity: {e}")
-            # Try alternative method
-            try:
-                self.entity.control_dofs_force(force_vector)
-            except Exception as e2:
-                print(f"Warning: Alternative force method also failed: {e2}")
 
     def get_state(self) -> BodyState:
         """Get current body state from Genesis entity."""
@@ -288,10 +278,10 @@ class GenesisRigidBody(Body):
 
             # Get orientation (quaternion to angle)
             quat = self.entity.get_quat()
-            # Convert quaternion to rotation around z-axis (theta)
-            # For simplicity, extract theta from quaternion
-            # This is an approximation for 2D rotation
-            self.state.theta = 2 * np.arctan2(quat[2], quat[3])  # Simplified quaternion to angle
+            # Convert quaternion [w, x, y, z] to rotation around z-axis (theta)
+            # theta = atan2(2*(w*z + x*y), 1 - 2*(y*y + z*z))
+            w, x, y, z = quat[0], quat[1], quat[2], quat[3]
+            self.state.theta = np.arctan2(2*(w*z + x*y), 1 - 2*(y*y + z*z))
 
             # Get velocities from Genesis DOFs
             dofs_velocity = self.entity.get_dofs_velocity()
