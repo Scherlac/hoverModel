@@ -66,7 +66,7 @@ The Genesis backend provides more sophisticated physics capabilities including a
 ### Quick Start
 Run physics tests with console output:
 ```bash
-python demo.py run --control linear:force=1.0:steps=50 --output console
+python demo.py run --control linear:force=1.0,steps=50 --output console
 ```
 
 ### Backend Selection
@@ -83,10 +83,10 @@ python demo.py run --control hovering --output console --backend genesis
 Test specific movement patterns:
 ```bash
 # Linear movement with console output
-python demo.py run --control linear:force=2.0:steps=100 --output console
+python demo.py run --control linear:force=2.0,steps=100 --output console
 
 # Rotational movement
-python demo.py run --control rotational:torque=0.5:steps=100 --output console
+python demo.py run --control rotational:torque=0.5,steps=100 --output console
 
 # Sinusoidal combined motion
 python demo.py run --control sinusoidal:steps=100 --output console
@@ -99,23 +99,23 @@ python demo.py run --control chaotic:steps=150 --output console
 Create demonstration videos (frames automatically cleaned up after generation):
 ```bash
 # Basic linear movement video
-python demo.py run --control linear:force=5.0:steps=100 --output video:filename=linear_demo.mp4:fps=10
+python demo.py run --control linear:force=5.0,steps=100 --output video:filename=linear_demo.mp4:fps=10
 
 # Bouncing boundary demo (start from center for real movement)
-python demo.py run --control linear:force=20.0:steps=100 --output video:filename=bouncing_demo.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0
+python demo.py run --control linear:force=20.0,steps=100 --output video:filename=bouncing_demo.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0
 
 # Rotational video with custom settings
-python demo.py run --control rotational:torque=1.0:steps=150 --output video:filename=rotation.mp4:fps=15
+python demo.py run --control rotational:torque=1.0,steps=150 --output video:filename=rotation.mp4:fps=15
 ```
 
 ### Live 3D Visualization
 Run interactive 3D visualization:
 ```bash
 # Live visualization of linear movement
-python demo.py run --control linear:force=3.0:steps=100 --output live
+python demo.py run --control linear:force=3.0,steps=100 --output live
 
 # Live bouncing demo
-python demo.py run --control linear:force=15.0:steps=200 --output live --start-x=0.0 --start-y=0.0 --start-z=5.0
+python demo.py run --control linear:force=15.0,steps=200 --output live --start-x=0.0 --start-y=0.0 --start-z=5.0
 ```
 
 ### Advanced Options
@@ -155,8 +155,8 @@ The demo system features a comprehensive Click-based CLI for easy experimentatio
 - `--backend genesis` - Use Genesis physics engine (advanced features)
 
 **Control Types:**
-- `linear:force=<float>:steps=<int>` - Constant forward thrust
-- `rotational:torque=<float>:steps=<int>` - Pure rotational movement  
+- `linear:force=<float>,steps=<int>` - Constant forward thrust
+- `rotational:torque=<float>,steps=<int>` - Pure rotational movement  
 - `sinusoidal:steps=<int>` - Combined sinusoidal motion
 - `chaotic:steps=<int>` - Boundary testing with high-amplitude signals
 - `hovering:steps=<int>` - Zero control inputs for stability testing
@@ -169,7 +169,7 @@ The demo system features a comprehensive Click-based CLI for easy experimentatio
 **Common Commands:**
 ```bash
 # Basic demonstrations
-python demo.py run --control linear:force=1.0:steps=50 --output console
+python demo.py run --control linear:force=1.0,steps=50 --output console
 python demo.py run --control chaotic:steps=100 --output console
 
 # Backend selection
@@ -177,14 +177,14 @@ python demo.py run --control hovering --output console --backend default
 python demo.py run --control hovering --output console --backend genesis
 
 # Video creation with automatic cleanup
-python demo.py run --control linear:force=10.0:steps=100 --output video:filename=demo.mp4:fps=10
+python demo.py run --control linear:force=10.0,steps=100 --output video:filename=demo.mp4:fps=10
 python demo.py run --control chaotic:steps=150 --output video:filename=bounce.mp4:fps=15
 
 # Live 3D visualization
 python demo.py run --control sinusoidal:steps=100 --output live
 
 # Custom starting positions for boundary testing
-python demo.py run --control linear:force=20.0:steps=100 --output video:filename=bouncing.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0
+python demo.py run --control linear:force=20.0,steps=100 --output video:filename=bouncing.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0
 
 # Get help
 python demo.py --help

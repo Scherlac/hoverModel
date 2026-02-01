@@ -657,7 +657,7 @@ class DefaultBodyEnv(Environment):
             # Step physics for all bodies (using applied controls)
             for body in self.bodies:
                 # Use zero action since controls are applied directly to bodies
-                self.physics.step(body, np.zeros(2), self.dt)
+                body.state = self.physics.step(body, np.zeros(2), self.dt)
 
             # Update visualizers
             for visualizer in self.visualizers:

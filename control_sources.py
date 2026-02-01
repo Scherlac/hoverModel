@@ -85,9 +85,9 @@ class ControlSource(ABC):
     def __init__(
             self, 
             id: str,
-            kind: Optional[str] = "x-force,z-torque",
-            typeinfo: Optional[type] = Tuple[float, float],
-            description: Optional[str] = "Provides control signals for body movement with force and torque",
+            kind: Optional[str] = "force",
+            typeinfo: Optional[type] = np.ndarray,
+            description: Optional[str] = "Provides control signals for body movement",
             ):
         super().__init__()
         self.lain_info = SignalChannel.register_signal_source(
@@ -136,7 +136,7 @@ class LinearMovementControl(ControlSource):
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
         while len(channel) <= self.lain_index:
             channel.append(None)
-        channel[self.lain_index] = (self.forward_force, 0.0)
+        channel[self.lain_index] = np.array([self.forward_force, 0.0, 0.0])
         return channel
 
     def get_description(self) -> str:
@@ -147,13 +147,13 @@ class RotationalControl(ControlSource):
     """Generates pure rotational movement."""
 
     def __init__(self, id: str, rotation_torque: float = 0.3):
-        super(RotationalControl, self).__init__(id=id)
+        super(RotationalControl, self).__init__(id=id, kind='torque')
         self.rotation_torque = rotation_torque
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
         while len(channel) <= self.lain_index:
             channel.append(None)
-        channel[self.lain_index] = (0.0, self.rotation_torque)
+        channel[self.lain_index] = np.array([0.0, 0.0, self.rotation_torque])
         return channel
 
     def get_description(self) -> str:
@@ -182,7 +182,7 @@ class SinusoidalControl(ControlSource):
             channel.append(None)
         forward = self.forward_amp * np.sin(step * self.forward_freq)
         rotation = self.rotation_amp * np.cos(step * self.rotation_freq)
-        channel[self.lain_index] = (forward, rotation)
+        channel[self.lain_index] = np.array([forward, 0.0, 0.0])
         return channel
 
     def get_description(self) -> str:
@@ -211,7 +211,7 @@ class ChaoticControl(ControlSource):
             channel.append(None)
         forward = self.forward_amp * np.sin(step * self.forward_freq)
         rotation = self.rotation_amp * np.cos(step * self.rotation_freq)
-        channel[self.lain_index] = (forward, rotation)
+        channel[self.lain_index] = np.array([forward, 0.0, 0.0])
         return channel
 
     def get_description(self) -> str:
