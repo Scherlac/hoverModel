@@ -142,10 +142,10 @@ def test_chaotic_control():
 # CLI Documentation Verification Tests
 
 def test_cli_linear_console_example():
-    """Test the CLI example: python demo.py run --control linear:force=1.0,steps=50 --output console"""
+    """Test the CLI example: python demo.py run --control linear:force=1.0 --output console --steps 50"""
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
-        "--control", "linear:force=1.0,steps=50", 
+        "--control", "linear:force=1.0", 
         "--output", "console",
         "--steps", "50"
     ], capture_output=True, text=True, cwd=".")
@@ -157,10 +157,10 @@ def test_cli_linear_console_example():
 
 
 def test_cli_rotational_console_example():
-    """Test the CLI example: python demo.py run --control rotational:torque=0.5,steps=100 --output console"""
+    """Test the CLI example: python demo.py run --control rotational:torque=0.5 --output console --steps 100"""
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
-        "--control", "rotational:torque=0.5,steps=100", 
+        "--control", "rotational:torque=0.5", 
         "--output", "console",
         "--steps", "100"
     ], capture_output=True, text=True, cwd=".")
@@ -183,10 +183,10 @@ def test_cli_hovering_backend_example():
 
 
 def test_cli_sinusoidal_console_example():
-    """Test the CLI example: python demo.py run --control sinusoidal:steps=100 --output console"""
+    """Test the CLI example: python demo.py run --control sinusoidal --output console --steps 100"""
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
-        "--control", "sinusoidal:steps=100", 
+        "--control", "sinusoidal", 
         "--output", "console",
         "--steps", "100"
     ], capture_output=True, text=True, cwd=".")
@@ -196,10 +196,10 @@ def test_cli_sinusoidal_console_example():
 
 
 def test_cli_chaotic_console_example():
-    """Test the CLI example: python demo.py run --control chaotic:steps=150 --output console"""
+    """Test the CLI example: python demo.py run --control chaotic --output console --steps 150"""
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
-        "--control", "chaotic:steps=150", 
+        "--control", "chaotic", 
         "--output", "console",
         "--steps", "150"
     ], capture_output=True, text=True, cwd=".")
@@ -234,7 +234,7 @@ def test_cli_run_help_command():
 # Video Output Documentation Verification Tests
 
 def test_cli_linear_video_example():
-    """Test the CLI example: python demo.py run --control linear:force=5.0,steps=100 --output video:filename=linear_demo.mp4:fps=10"""
+    """Test the CLI example: python demo.py run --control linear:force=5.0 --output video:filename=linear_demo.mp4:fps=10 --steps 100"""
     # Skip if FFmpeg is not available
     if not check_ffmpeg_available():
         pytest.skip("FFmpeg not available - skipping video test")
@@ -248,7 +248,7 @@ def test_cli_linear_video_example():
     
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
-        "--control", "linear:force=5.0,steps=100", 
+        "--control", "linear:force=5.0", 
         "--output", f"video:filename={video_file}:fps=10",
         "--steps", "100"
     ], capture_output=True, text=True, cwd=".")
@@ -267,7 +267,7 @@ def test_cli_linear_video_example():
 
 
 def test_cli_bouncing_video_example():
-    """Test the CLI example: python demo.py run --control linear:force=20.0,steps=100 --output video:filename=bouncing_demo.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0"""
+    """Test the CLI example: python demo.py run --control linear:force=20.0 --output video:filename=bouncing_demo.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0 --steps 100"""
     # Skip if FFmpeg is not available
     if not check_ffmpeg_available():
         pytest.skip("FFmpeg not available - skipping video test")
@@ -281,7 +281,7 @@ def test_cli_bouncing_video_example():
     
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
-        "--control", "linear:force=20.0,steps=100", 
+        "--control", "linear:force=20.0", 
         "--output", f"video:filename={video_file}:fps=10",
         "--start-x", "0.0",
         "--start-y", "0.0", 
@@ -303,7 +303,7 @@ def test_cli_bouncing_video_example():
 
 
 def test_cli_rotational_video_example():
-    """Test the CLI example: python demo.py run --control rotational:torque=1.0,steps=150 --output video:filename=rotation.mp4:fps=15"""
+    """Test the CLI example: python demo.py run --control rotational:torque=1.0 --output video:filename=rotation.mp4:fps=15 --steps 150"""
     # Skip if FFmpeg is not available
     if not check_ffmpeg_available():
         pytest.skip("FFmpeg not available - skipping video test")
@@ -317,7 +317,7 @@ def test_cli_rotational_video_example():
     
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
-        "--control", "rotational:torque=1.0,steps=150", 
+        "--control", "rotational:torque=1.0", 
         "--output", f"video:filename={video_file}:fps=15",
         "--steps", "150"
     ], capture_output=True, text=True, cwd=".")
@@ -336,7 +336,7 @@ def test_cli_rotational_video_example():
 
 
 def test_cli_custom_start_video_example():
-    """Test the CLI example: python demo.py run --control linear:force=10.0:steps=100 --output video:filename=custom_start.mp4:fps=10 --start-x=2.0 --start-y=1.0 --start-z=3.0"""
+    """Test the CLI example: python demo.py run --control linear:force=10.0 --output video:filename=custom_start.mp4:fps=10 --start-x=2.0 --start-y=1.0 --start-z=3.0 --steps 100"""
     # Skip if FFmpeg is not available
     if not check_ffmpeg_available():
         pytest.skip("FFmpeg not available - skipping video test")
@@ -350,7 +350,7 @@ def test_cli_custom_start_video_example():
     
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
-        "--control", "linear:force=10.0,steps=100", 
+        "--control", "linear:force=10.0", 
         "--output", f"video:filename={video_file}:fps=10",
         "--start-x", "2.0",
         "--start-y", "1.0",
@@ -372,7 +372,7 @@ def test_cli_custom_start_video_example():
 
 
 def test_cli_chaotic_video_example():
-    """Test the CLI example: python demo.py run --control chaotic:steps=200 --output video:filename=chaos.mp4:fps=20"""
+    """Test the CLI example: python demo.py run --control chaotic --output video:filename=chaos.mp4:fps=20 --steps 200"""
     # Skip if FFmpeg is not available
     if not check_ffmpeg_available():
         pytest.skip("FFmpeg not available - skipping video test")
@@ -386,7 +386,7 @@ def test_cli_chaotic_video_example():
     
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
-        "--control", "chaotic:steps=200", 
+        "--control", "chaotic", 
         "--output", f"video:filename={video_file}:fps=20",
         "--steps", "200"
     ], capture_output=True, text=True, cwd=".")
@@ -407,12 +407,12 @@ def test_cli_chaotic_video_example():
 # Live Visualization Documentation Verification Tests
 
 def test_cli_linear_live_example():
-    """Test the CLI example: python demo.py run --control linear:force=3.0,steps=100 --output live"""
+    """Test the CLI example: python demo.py run --control linear:force=3.0 --output live --steps 100"""
     # Skip live visualization tests as they require interactive display windows
     pytest.skip("Live visualization requires interactive display environment")
 
 
 def test_cli_bouncing_live_example():
-    """Test the CLI example: python demo.py run --control linear:force=15.0,steps=200 --output live --start-x=0.0 --start-y=0.0 --start-z=5.0"""
+    """Test the CLI example: python demo.py run --control linear:force=15.0 --output live --start-x=0.0 --start-y=0.0 --start-z=5.0 --steps 200"""
     # Skip live visualization tests as they require interactive display windows
     pytest.skip("Live visualization requires interactive display environment")

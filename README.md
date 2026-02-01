@@ -66,7 +66,7 @@ The Genesis backend provides more sophisticated physics capabilities including a
 ### Quick Start
 Run physics tests with console output:
 ```bash
-python demo.py run --control linear:force=1.0,steps=50 --output console
+python demo.py run --control linear:force=1.0 --output console --steps 50
 ```
 
 ### Backend Selection
@@ -83,49 +83,50 @@ python demo.py run --control hovering --output console --backend genesis
 Test specific movement patterns:
 ```bash
 # Linear movement with console output
-python demo.py run --control linear:force=2.0,steps=100 --output console
+python demo.py run --control linear:force=2.0 --output console --steps 100
 
 # Rotational movement
-python demo.py run --control rotational:torque=0.5,steps=100 --output console
+python demo.py run --control rotational:torque=0.5 --output console --steps 100
 
 # Sinusoidal combined motion
-python demo.py run --control sinusoidal:steps=100 --output console
+python demo.py run --control sinusoidal --output console --steps 100
 
 # Chaotic boundary testing
-python demo.py run --control chaotic:steps=150 --output console
+python demo.py run --control chaotic --output console --steps 150
 ```
 
 ### Video Creation
 Create demonstration videos (frames automatically cleaned up after generation):
 ```bash
 # Basic linear movement video
-python demo.py run --control linear:force=5.0,steps=100 --output video:filename=linear_demo.mp4:fps=10
+python demo.py run --control linear:force=5.0 --output video:filename=linear_demo.mp4:fps=10 --steps 100
 
 # Bouncing boundary demo (start from center for real movement)
-python demo.py run --control linear:force=20.0,steps=100 --output video:filename=bouncing_demo.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0
+python demo.py run --control linear:force=20.0 --output video:filename=bouncing_demo.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0 --steps 100
 
 # Rotational video with custom settings
-python demo.py run --control rotational:torque=1.0,steps=150 --output video:filename=rotation.mp4:fps=15
+python demo.py run --control rotational:torque=1.0 --output video:filename=rotation.mp4:fps=15 --steps 150
 ```
 
 ### Live 3D Visualization
 Run interactive 3D visualization:
 ```bash
 # Live visualization of linear movement
-python demo.py run --control linear:force=3.0,steps=100 --output live
+python demo.py run --control linear:force=3.0 --output live --steps 100
 
 # Live bouncing demo
-python demo.py run --control linear:force=15.0,steps=200 --output live --start-x=0.0 --start-y=0.0 --start-z=5.0
+python demo.py run --control linear:force=15.0 --output live --start-x=0.0 --start-y=0.0 --start-z=5.0 --steps 200
 ```
 
 ### Advanced Options
 ```bash
 # Custom starting position
-python demo.py run --control linear:force=10.0:steps=100 --output video:filename=custom_start.mp4:fps=10 --start-x=2.0 --start-y=1.0 --start-z=3.0
+python demo.py run --control linear:force=10.0 --output video:filename=custom_start.mp4:fps=10 --start-x=2.0 --start-y=1.0 --start-z=3.0 --steps 100
+```
 
 # Multiple controls (not yet implemented - single control per run)
 # Custom video settings
-python demo.py run --control chaotic:steps=200 --output video:filename=chaos.mp4:fps=20
+python demo.py run --control chaotic --output video:filename=chaos.mp4:fps=20 --steps 200
 
 # Get help
 python demo.py --help
@@ -133,11 +134,11 @@ python demo.py run --help
 ```
 
 **Control Options:**
-- `linear:force=<float>:steps=<int>` - Constant forward thrust
-- `rotational:torque=<float>:steps=<int>` - Pure rotational movement
-- `sinusoidal:steps=<int>` - Combined sinusoidal motion
-- `chaotic:steps=<int>` - Boundary testing with high-amplitude signals
-- `hovering:steps=<int>` - Zero control inputs for stability testing
+- `linear:force=<float>` - Constant forward thrust
+- `rotational:torque=<float>` - Pure rotational movement
+- `sinusoidal` - Combined sinusoidal motion
+- `chaotic` - Boundary testing with high-amplitude signals
+- `hovering` - Zero control inputs for stability testing
 
 **Output Options:**
 - `console` - Text-based logging of position, velocity, and events
@@ -155,11 +156,11 @@ The demo system features a comprehensive Click-based CLI for easy experimentatio
 - `--backend genesis` - Use Genesis physics engine (advanced features)
 
 **Control Types:**
-- `linear:force=<float>,steps=<int>` - Constant forward thrust
-- `rotational:torque=<float>,steps=<int>` - Pure rotational movement  
-- `sinusoidal:steps=<int>` - Combined sinusoidal motion
-- `chaotic:steps=<int>` - Boundary testing with high-amplitude signals
-- `hovering:steps=<int>` - Zero control inputs for stability testing
+- `linear:force=<float>` - Constant forward thrust
+- `rotational:torque=<float>` - Pure rotational movement  
+- `sinusoidal` - Combined sinusoidal motion
+- `chaotic` - Boundary testing with high-amplitude signals
+- `hovering` - Zero control inputs for stability testing
 
 **Output Types:**
 - `console` - Text-based logging output
@@ -169,19 +170,19 @@ The demo system features a comprehensive Click-based CLI for easy experimentatio
 **Common Commands:**
 ```bash
 # Basic demonstrations
-python demo.py run --control linear:force=1.0,steps=50 --output console
-python demo.py run --control chaotic:steps=100 --output console
+python demo.py run --control linear:force=1.0 --output console --steps 50
+python demo.py run --control chaotic --output console --steps 100
 
 # Backend selection
 python demo.py run --control hovering --output console --backend default
 python demo.py run --control hovering --output console --backend genesis
 
 # Video creation with automatic cleanup
-python demo.py run --control linear:force=10.0,steps=100 --output video:filename=demo.mp4:fps=10
-python demo.py run --control chaotic:steps=150 --output video:filename=bounce.mp4:fps=15
+python demo.py run --control linear:force=10.0 --output video:filename=demo.mp4:fps=10 --steps 100
+python demo.py run --control chaotic --output video:filename=bounce.mp4:fps=15 --steps 150
 
 # Live 3D visualization
-python demo.py run --control sinusoidal:steps=100 --output live
+python demo.py run --control sinusoidal --output live --steps 100
 
 # Custom starting positions for boundary testing
 python demo.py run --control linear:force=20.0,steps=100 --output video:filename=bouncing.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0
@@ -328,8 +329,8 @@ env.run_simulation(control, steps=100)
 **CLI Usage:**
 ```bash
 # Equivalent CLI commands
-python demo.py run --control linear:force=1.0:steps=50 --output console
-python demo.py run --control linear:force=1.0:steps=100 --output video:filename=demo.mp4:fps=10
+python demo.py run --control linear:force=1.0 --output console --steps 50
+python demo.py run --control linear:force=1.0 --output video:filename=demo.mp4:fps=10 --steps 100
 ```
 
 This architecture allows testing any control strategy with any output format without code duplication.
@@ -438,16 +439,16 @@ hovercraft.set_state(new_state)
 **CLI Commands:**
 ```bash
 # Quick demonstrations
-python demo.py run --control hovering:steps=50 --output console    # Test stability
-python demo.py run --control linear:force=2.0:steps=100 --output console  # Test forward movement
-python demo.py run --control chaotic:steps=150 --output console    # Test boundary interactions
+python demo.py run --control hovering --output console --steps 50    # Test stability
+python demo.py run --control linear:force=2.0 --output console --steps 100  # Test forward movement
+python demo.py run --control chaotic --output console --steps 150    # Test boundary interactions
 
 # Video creation with automatic frame cleanup
-python demo.py run --control sinusoidal:steps=100 --output video:filename=smooth.mp4:fps=10
-python demo.py run --control chaotic:steps=200 --output video:filename=bounce.mp4:fps=15
+python demo.py run --control sinusoidal --output video:filename=smooth.mp4:fps=10 --steps 100
+python demo.py run --control chaotic --output video:filename=bounce.mp4:fps=15 --steps 200
 
 # Live 3D visualization
-python demo.py run --control linear:force=5.0:steps=100 --output live
+python demo.py run --control linear:force=5.0 --output live --steps 100
 ```
 
 **Programmatic API:**
