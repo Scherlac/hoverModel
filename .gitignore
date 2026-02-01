@@ -24,3 +24,10 @@ coverage.xml
 dist/
 build/
 *.mp4
+*.png
+*.jpg
+*.jpeg
+*.gif
+frames/
+test_*.png
+test_*.mp4

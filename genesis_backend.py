@@ -90,6 +90,15 @@ class GenesisPhysics(PhysicsEngine):
     def build_scene(self):
         """Build the Genesis scene."""
         if not self.built:
+            # Add a camera for rendering before building
+            if not hasattr(self, 'camera'):
+                self.camera = self.scene.add_camera(
+                    res=(1280, 720),
+                    pos=(5, 5, 5),
+                    lookat=(0, 0, 1),
+                    fov=60,
+                    GUI=False
+                )
             self.scene.build()
             self.built = True
 
@@ -559,57 +568,137 @@ class GenesisVisualizationOutput(VisualizationOutput):
     def __init__(self, visualizer: GenesisVisualizer):
         super(GenesisVisualizationOutput, self).__init__(visualizer)
         self.zoom = 0.6
-        # Try to create an offscreen viewer for frame capture
-        try:
-            self.viewer = gs.Viewer(self.visualizer.env.physics.scene, show_gui=False)
-            self.can_capture = True
-        except:
-            self.viewer = None
-            self.can_capture = False
+        self.scene = visualizer.env.physics.scene
+        # Camera is now added in GenesisPhysics.build_scene()
+        self.camera = getattr(visualizer.env.physics, 'camera', None)
 
     def set_camera(self, position: Tuple[float, float, float], look_at: Tuple[float, float, float]) -> None:
-        """Set camera position - not directly supported in Genesis viewer."""
-        pass
+        """Set camera position."""
+        if self.camera:
+            self.camera.set_pose(pos=position, lookat=look_at)
 
     def set_zoom(self, zoom: float) -> None:
         """Set zoom level."""
         self.zoom = zoom
+        # Adjust camera position based on zoom
+        if self.camera:
+            current_pos = self.camera.pos
+            lookat = self.camera.lookat
+            direction = np.array(lookat) - np.array(current_pos)
+            direction = direction / np.linalg.norm(direction)
+            new_pos = np.array(lookat) - direction * (10 / zoom)  # Adjust distance based on zoom
+            self.camera.set_pose(pos=tuple(new_pos), lookat=lookat)
 
     def render_frame(self) -> None:
         """Render frame - handled by Genesis internally."""
-        if self.viewer:
-            self.viewer.render()
+        pass
 
     def capture_frame(self, filename: str) -> None:
-        """Capture frame to file using Genesis viewer if available."""
-        # For now, create a frame with current positions
-        self._create_position_frame(filename)
+        """Capture frame to file using Genesis rendering."""
+        if self.camera and self.scene.is_built:
+            try:
+                # Render the scene
+                rgb_images = self.scene.render_all_cameras(rgb=True)
+                if len(rgb_images) > 0:
+                    # Get the first camera's image
+                    rgb_image = rgb_images[0]  # Shape: (H, W, 3)
+                    
+                    # Convert to PIL Image and save
+                    from PIL import Image
+                    import numpy as np
+                    
+                    # Convert from tensor to numpy array if needed
+                    if hasattr(rgb_image, 'cpu'):
+                        rgb_image = rgb_image.cpu().numpy()
+                    
+                    # Ensure values are in 0-255 range
+                    rgb_image = (rgb_image * 255).astype(np.uint8)
+                    
+                    img = Image.fromarray(rgb_image)
+                    img.save(filename)
+                    print(f"Frame captured successfully: {filename}")
+                else:
+                    print(f"No cameras available for rendering, falling back to simple visualization")
+                    self._create_position_frame(filename)
+            except Exception as e:
+                print(f"Genesis rendering failed: {e}, falling back to simple visualization")
+                self._create_position_frame(filename)
+        else:
+            print(f"Camera not available or scene not built, falling back to simple visualization")
+            self._create_position_frame(filename)
 
     def _create_position_frame(self, filename: str) -> None:
-        """Create a frame showing current body positions."""
+        """Create a frame showing current body positions with bounds."""
         try:
             from PIL import Image, ImageDraw, ImageFont
-            # Create a simple visualization image
-            img = Image.new('RGB', (800, 600), color='black')
+            # Create a larger visualization image
+            img_width, img_height = 1200, 800
+            img = Image.new('RGB', (img_width, img_height), color='lightblue')
             draw = ImageDraw.Draw(img)
             
-            # Draw bodies as circles
+            # Draw bounds (ground plane)
+            bounds = self.visualizer.env.physics.bounds
+            x_min, x_max = bounds['x']
+            y_min, y_max = bounds['y']
+            z_min, z_max = bounds['z']
+            
+            # Convert 3D bounds to 2D screen coordinates (top-down view)
+            scale = 100  # pixels per unit
+            offset_x = img_width // 2
+            offset_y = img_height // 2
+            
+            # Draw ground plane as a rectangle
+            ground_left = offset_x + x_min * scale
+            ground_right = offset_x + x_max * scale
+            ground_top = offset_y + y_min * scale
+            ground_bottom = offset_y + y_max * scale
+            
+            draw.rectangle([ground_left, ground_top, ground_right, ground_bottom], 
+                         fill='lightgreen', outline='darkgreen', width=2)
+            
+            # Label ground
+            draw.text((ground_left + 10, ground_top + 10), "Ground Plane", fill='black')
+            
+            # Draw bodies
             bodies = self.visualizer.env.bodies
             for i, body in enumerate(bodies):
                 pos = body.state.r
-                # Simple 2D projection (top view)
-                x = int(400 + pos[0] * 50)  # Scale for visibility
-                y = int(300 + pos[1] * 50)
-                radius = 20
+                # Convert 3D position to 2D screen coordinates
+                x = offset_x + pos[0] * scale
+                y = offset_y + pos[1] * scale
+                
+                # Draw body as a circle with height indication
+                radius = 15
                 if hasattr(body, 'config') and body.config.get('type') == 'sphere':
-                    radius = int(body.config.get('radius', 0.5) * 100)
+                    radius = int(body.config.get('radius', 0.5) * scale)
                     color = 'blue'
+                    shape = 'sphere'
                 else:
-                    color = 'red'  # hovercraft
-                draw.ellipse([x-radius, y-radius, x+radius, y+radius], fill=color)
-                draw.text((x, y), f"{i}", fill='white', anchor='mm')
+                    color = 'red'
+                    shape = 'hovercraft'
+                
+                draw.ellipse([x-radius, y-radius, x+radius, y+radius], fill=color, outline='black')
+                
+                # Draw height indicator
+                height_text = f"z={pos[2]:.2f}"
+                draw.text((x + radius + 5, y - 10), height_text, fill='black')
+                
+                # Label the body
+                label = f"{shape} {i}"
+                draw.text((x - 30, y + radius + 5), label, fill='black')
             
-            draw.text((10, 10), f"Genesis Simulation - Step {self.visualizer.env.step_count}", fill='white')
+            # Add title and info
+            title = f"Genesis Simulation - Step {self.visualizer.env.step_count}"
+            draw.text((10, 10), title, fill='black')
+            
+            # Add bounds info
+            bounds_text = f"Bounds: X[{x_min:.1f}, {x_max:.1f}] Y[{y_min:.1f}, {y_max:.1f}] Z[{z_min:.1f}, {z_max:.1f}]"
+            draw.text((10, 30), bounds_text, fill='black')
+            
+            # Add mesh info
+            mesh_info = "Using hoverBody_main.obj mesh (3D visualization not available)"
+            draw.text((10, 50), mesh_info, fill='red')
+            
             img.save(filename)
         except ImportError:
             # If PIL not available, create a text file
