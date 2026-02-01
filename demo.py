@@ -32,7 +32,7 @@ def run(controls, outputs, bodies, backend, start_x, start_y, start_z, steps):
     output_configs = [parse_spec(spec, 'output') for spec in outputs]
     body_configs = [parse_spec(spec, 'body') for spec in bodies] if bodies else []
     
-    click.echo(f"🚀 Running simulation with {backend} backend")
+    click.echo(f"Running simulation with {backend} backend")
     click.echo(f"   Bodies: {len(body_configs)} (default + {len(body_configs)} added)" if not bodies else f"   Bodies: {len(body_configs)}")
     click.echo(f"   Controls: {len(control_configs)}")
     click.echo(f"   Outputs: {len(output_configs)}")

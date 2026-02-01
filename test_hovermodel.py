@@ -1,5 +1,7 @@
 import pytest
 import numpy as np
+import subprocess
+import sys
 from default_backend import DefaultBodyEnv
 from control_sources import ControlSourceFactory
 from simulation_outputs import LoggingSimulationOutput
@@ -114,3 +116,95 @@ def test_chaotic_control():
     # Should have moved from initial position
     final_pos = env.bodies[0].state.r
     assert not np.allclose(final_pos, [0.0, 0.0, 1.0], atol=0.01)
+
+
+# CLI Documentation Verification Tests
+
+def test_cli_linear_console_example():
+    """Test the CLI example: python demo.py run --control linear:force=1.0,steps=50 --output console"""
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", 
+        "--control", "linear:force=1.0,steps=50", 
+        "--output", "console",
+        "--steps", "50"
+    ], capture_output=True, text=True, cwd=".")
+    
+    assert result.returncode == 0
+    assert "Running simulation with 50 steps..." in result.stdout
+    assert "Step | Position" in result.stdout
+    assert "Simulation completed." in result.stdout
+
+
+def test_cli_rotational_console_example():
+    """Test the CLI example: python demo.py run --control rotational:torque=0.5,steps=100 --output console"""
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", 
+        "--control", "rotational:torque=0.5,steps=100", 
+        "--output", "console",
+        "--steps", "100"
+    ], capture_output=True, text=True, cwd=".")
+    
+    assert result.returncode == 0
+    assert "Running simulation with 100 steps..." in result.stdout
+
+
+def test_cli_hovering_backend_example():
+    """Test the CLI example: python demo.py run --control hovering --output console --backend default"""
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", 
+        "--control", "hovering", 
+        "--output", "console",
+        "--backend", "default"
+    ], capture_output=True, text=True, cwd=".")
+    
+    assert result.returncode == 0
+    assert "default backend" in result.stdout
+
+
+def test_cli_sinusoidal_console_example():
+    """Test the CLI example: python demo.py run --control sinusoidal:steps=100 --output console"""
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", 
+        "--control", "sinusoidal:steps=100", 
+        "--output", "console",
+        "--steps", "100"
+    ], capture_output=True, text=True, cwd=".")
+    
+    assert result.returncode == 0
+    assert "Running simulation with 100 steps..." in result.stdout
+
+
+def test_cli_chaotic_console_example():
+    """Test the CLI example: python demo.py run --control chaotic:steps=150 --output console"""
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", 
+        "--control", "chaotic:steps=150", 
+        "--output", "console",
+        "--steps", "150"
+    ], capture_output=True, text=True, cwd=".")
+    
+    assert result.returncode == 0
+    assert "Running simulation with 150 steps..." in result.stdout
+
+
+def test_cli_help_command():
+    """Test the CLI help command: python demo.py --help"""
+    result = subprocess.run([
+        sys.executable, "demo.py", "--help"
+    ], capture_output=True, text=True, cwd=".")
+    
+    assert result.returncode == 0
+    assert "run" in result.stdout
+    assert "Options:" in result.stdout
+
+
+def test_cli_run_help_command():
+    """Test the CLI run help command: python demo.py run --help"""
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", "--help"
+    ], capture_output=True, text=True, cwd=".")
+    
+    assert result.returncode == 0
+    assert "--control" in result.stdout
+    assert "--output" in result.stdout
+    assert "--backend" in result.stdout

@@ -46,8 +46,8 @@ class LoggingSimulationOutput(SimulationOutput):
         self.log_interval = log_interval
 
     def initialize(self) -> None:
-        print(f"🎯 Starting simulation with {self.env.physics.__class__.__name__}")
-        print("Step | Position (x,y,z) | Velocity (vx,vy,vz) | Control (F,τ) | Theta | Omega")
+        print(f"Starting simulation with {self.env.physics.__class__.__name__}")
+        print("Step | Position (x,y,z) | Velocity (vx,vy,vz) | Control (F,T) | Theta | Omega")
         print("-" * 80)
 
     def process_step(self, step: int, control) -> None:
@@ -80,7 +80,7 @@ class LoggingSimulationOutput(SimulationOutput):
 
     def finalize(self) -> None:
         print("-" * 80)
-        print("✅ Simulation completed.")
+        print("Simulation completed.")
 
 
 class VideoSimulationOutput(SimulationOutput):
