@@ -134,16 +134,19 @@ python demo.py run --help
 ```
 
 **Control Options:**
-- `linear:force=<float>` - Constant forward thrust
-- `rotational:torque=<float>` - Pure rotational movement
-- `sinusoidal` - Combined sinusoidal motion
-- `chaotic` - Boundary testing with high-amplitude signals
-- `hovering` - Zero control inputs for stability testing
+- `linear:force=<float>[,steps=<range>]` - Constant forward thrust
+- `rotational:torque=<float>[,steps=<range>]` - Pure rotational movement
+- `sinusoidal[,steps=<range>]` - Combined sinusoidal motion
+- `chaotic[,steps=<range>]` - Boundary testing with high-amplitude signals
+- `hovering[,steps=<range>]` - Zero control inputs for stability testing
 
 **Output Options:**
-- `console` - Text-based logging of position, velocity, and events
-- `live` - Interactive 3D Open3D visualization window
-- `video:filename=<name.mp4>:fps=<int>` - MP4 video generation with automatic cleanup
+- `console[,steps=<range>]` - Text-based logging of position, velocity, and events
+- `live[,steps=<range>]` - Interactive 3D Open3D visualization window
+- `video:filename=<name.mp4>:fps=<int>[,steps=<range>]` - MP4 video generation with automatic cleanup
+
+**Body Options:**
+- `sphere:radius=<float>,mass=<float>[,position=<x,y,z>][,steps=<range>]` - Add spherical body to simulation
 
 ### Command Line Interface (CLI)
 The demo system features a comprehensive Click-based CLI for easy experimentation:
@@ -167,6 +170,14 @@ The demo system features a comprehensive Click-based CLI for easy experimentatio
 - `live` - Interactive 3D Open3D visualization
 - `video:filename=<file.mp4>:fps=<int>` - MP4 video generation
 
+**Step Range Specification:**
+All controls, outputs, and bodies support an optional `steps=<range>` parameter to specify when they are active during the simulation:
+- `steps=<start>-<end>` - Active from step <start> to <end> (e.g., `steps=10-50`)
+- `steps=<start>` - Active from step <start> to end of simulation (e.g., `steps=25`)
+- If not specified, active for the entire simulation (steps 0 to end)
+- For bodies, controls appearance/disappearance timing
+- For controls/outputs, controls when they process/generate data
+
 **Common Commands:**
 ```bash
 # Basic demonstrations
@@ -185,7 +196,15 @@ python demo.py run --control chaotic --output video:filename=bounce.mp4:fps=15 -
 python demo.py run --control sinusoidal --output live --steps 100
 
 # Custom starting positions for boundary testing
-python demo.py run --control linear:force=20.0,steps=100 --output video:filename=bouncing.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0
+python demo.py run --control linear:force=20.0 --output video:filename=bouncing.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0 --steps 100
+
+# Advanced examples with step ranges (planned feature)
+# Control active only during specific steps
+python demo.py run --control linear:force=5.0,steps=10-50 --output console --steps 100
+# Output active only during specific steps  
+python demo.py run --control chaotic --output video:filename=partial.mp4:fps=10,steps=25-75 --steps 100
+# Body appears/disappears during simulation (planned feature)
+python demo.py run --control hovering --body sphere:radius=0.5,mass=2.0,steps=20-80 --output console --steps 100
 
 # Get help
 python demo.py --help
@@ -492,6 +511,11 @@ control = ControlSourceFactory.create_linear(force=10.0)
 video_output = VideoSimulationOutput(env, "boundary_test.mp4", fps=10)
 env.run_simulation(control, steps=100)
 
+# Planned: Step-range controls and outputs (not yet implemented)
+# Controls and outputs can be configured to be active only during specific step ranges
+# control = ControlSourceFactory.create_linear(force=5.0, steps="10-50")  # Active steps 10-50
+# video_output = VideoSimulationOutput(env, "partial.mp4", fps=10, steps="25-75")  # Record steps 25-75
+
 # Vector gravity (e.g., simulating wind effects)
 from default_backend import NewtonianPhysics, DefaultBodyEnv
 wind_physics = NewtonianPhysics({
@@ -509,7 +533,13 @@ compact_physics = NewtonianPhysics({
 ## Future Steps
 
 ### Immediate (High Priority)
-1. **Add Reinforcement Learning Interface**
+1. **Implement Step Range Specification**
+   - Add `steps=<range>` parameter support for controls, outputs, and bodies
+   - Allow controls/outputs to be active only during specific simulation steps
+   - Enable dynamic body appearance/disappearance during simulation
+   - Syntax: `steps=10-50` (steps 10-50), `steps=25` (from step 25 to end)
+
+2. **Enhance Visualization**
    - Implement Gymnasium-compatible environment
    - Add reward functions for RL training
    - Define observation and action spaces
