@@ -34,8 +34,18 @@ class GenesisPhysics(PhysicsEngine):
         self.config = config
         self.dt = config.get('dt', 0.01)
 
-        # Create scene
-        self.scene = gs.Scene(show_viewer=False)  # We'll handle visualization separately
+        # Create scene with built-in viewer enabled
+        self.scene = gs.Scene(
+            show_viewer=True,  # Enable Genesis built-in viewer for live visualization
+            viewer_options=gs.options.ViewerOptions(
+                camera_pos=(5, 5, 5),  # Match default backend camera position
+                camera_lookat=(0.0, 0.0, 1.0),  # Look at hovercraft initial position
+                camera_fov=40,
+            ),
+            sim_options=gs.options.SimOptions(
+                dt=self.dt,
+            ),
+        )
 
         # Add ground plane
         self.ground = self.scene.add_entity(gs.morphs.Plane())
@@ -90,17 +100,69 @@ class GenesisPhysics(PhysicsEngine):
     def build_scene(self):
         """Build the Genesis scene."""
         if not self.built:
+            # Add boundary visualizations
+            self._add_boundary_visualizations()
+            
             # Add a camera for rendering before building
             if not hasattr(self, 'camera'):
                 self.camera = self.scene.add_camera(
                     res=(1280, 720),
-                    pos=(5, 5, 5),
-                    lookat=(0, 0, 1),
+                    pos=(5, 5, 5),  # Match default backend camera position
+                    lookat=(0, 0, 1),  # Match default backend look-at
                     fov=60,
+                    up=(0, 0, 1),  # Z-up to match default backend
                     GUI=False
                 )
             self.scene.build()
             self.built = True
+
+    def ensure_scene_built(self):
+        """Ensure the scene is built."""
+        if not self.built:
+            self.build_scene()
+
+    def _add_boundary_visualizations(self):
+        """Add visual elements to show environment boundaries."""
+        x_min, x_max = self.bounds['x']
+        y_min, y_max = self.bounds['y']
+        z_min, z_max = self.bounds['z']
+
+        # Add boundary lines using thin boxes
+        # Issue: this implementation creates rigid bodies
+        # that interacts with gravity and other bodies.
+        # Boundary walls should ideally be static/non-movable.
+        # visually transparent or semi-transparent.
+        # For now, we comment this out to avoid interference.        
+        # # Add boundary walls as thin boxes
+        # wall_thickness = 0.05
+        
+        # # X boundaries (front and back walls)
+        # self.scene.add_entity(gs.morphs.Box(
+        #     pos=(x_min, (y_min + y_max) / 2, (z_min + z_max) / 2),
+        #     size=(wall_thickness, y_max - y_min, z_max - z_min)
+        # ))
+        
+        # self.scene.add_entity(gs.morphs.Box(
+        #     pos=(x_max, (y_min + y_max) / 2, (z_min + z_max) / 2),
+        #     size=(wall_thickness, y_max - y_min, z_max - z_min)
+        # ))
+        
+        # # Y boundaries (left and right walls)
+        # self.scene.add_entity(gs.morphs.Box(
+        #     pos=((x_min + x_max) / 2, y_min, (z_min + z_max) / 2),
+        #     size=(x_max - x_min, wall_thickness, z_max - z_min)
+        # ))
+        
+        # self.scene.add_entity(gs.morphs.Box(
+        #     pos=((x_min + x_max) / 2, y_max, (z_min + z_max) / 2),
+        #     size=(x_max - x_min, wall_thickness, z_max - z_min)
+        # ))
+        
+        # # Z boundaries (ceiling) - floor is already the ground plane
+        # self.scene.add_entity(gs.morphs.Box(
+        #     pos=((x_min + x_max) / 2, (y_min + y_max) / 2, z_max),
+        #     size=(x_max - x_min, y_max - y_min, wall_thickness)
+        # ))
 
     def step(self, body: 'GenesisRigidBody', action: np.ndarray, dt: float) -> BodyState:
         """
@@ -543,9 +605,10 @@ class GenesisBodyEnv(Environment):
 class GenesisVisualizer(Visualizer):
     """Genesis-based visualizer using built-in viewer."""
 
-    def __init__(self, env: Environment):
+    def __init__(self, env: Environment, render_mode: str = 'rgb'):
         super(GenesisVisualizer, self).__init__(env)
         self.env = env
+        self.render_mode = render_mode
         # Genesis handles its own visualization
         self.viewer_active = False
 
@@ -555,7 +618,7 @@ class GenesisVisualizer(Visualizer):
 
     def get_visualization_output(self) -> VisualizationOutput:
         """Get visualization output handler."""
-        return GenesisVisualizationOutput(self)
+        return GenesisVisualizationOutput(self, self.render_mode)
 
     def close(self):
         """Clean up visualization resources."""
@@ -565,12 +628,14 @@ class GenesisVisualizer(Visualizer):
 class GenesisVisualizationOutput(VisualizationOutput):
     """Genesis visualization output handler."""
 
-    def __init__(self, visualizer: GenesisVisualizer):
+    def __init__(self, visualizer: GenesisVisualizer, render_mode: str = 'rgb'):
         super(GenesisVisualizationOutput, self).__init__(visualizer)
         self.zoom = 0.6
         self.scene = visualizer.env.physics.scene
-        # Camera is now added in GenesisPhysics.build_scene()
-        self.camera = getattr(visualizer.env.physics, 'camera', None)
+        # Camera will be created when scene is built
+        self.camera = None
+        self.render_mode = render_mode
+        self.render_mode = render_mode  # 'rgb', 'depth', 'segmentation', 'normal'
 
     def set_camera(self, position: Tuple[float, float, float], look_at: Tuple[float, float, float]) -> None:
         """Set camera position."""
@@ -593,118 +658,80 @@ class GenesisVisualizationOutput(VisualizationOutput):
         """Render frame - handled by Genesis internally."""
         pass
 
-    def capture_frame(self, filename: str) -> None:
-        """Capture frame to file using Genesis rendering."""
+    def capture_frame(self, filename: str, render_mode: str = 'rgb') -> None:
+        """Capture frame to file using Genesis camera rendering.
+        
+        Args:
+            filename: Output filename for the captured frame
+            render_mode: Type of rendering ('rgb', 'depth', 'segmentation', 'normal')
+        """
+        # Ensure scene is built before rendering
+        if hasattr(self.visualizer, 'env') and hasattr(self.visualizer.env, 'physics'):
+            self.visualizer.env.physics.ensure_scene_built()
+            # Get camera reference after scene is built
+            if self.camera is None:
+                self.camera = getattr(self.visualizer.env.physics, 'camera', None)
+            
         if self.camera and self.scene.is_built:
             try:
-                # Render the scene
-                rgb_images = self.scene.render_all_cameras(rgb=True)
-                if len(rgb_images) > 0:
-                    # Get the first camera's image
-                    rgb_image = rgb_images[0]  # Shape: (H, W, 3)
-                    
-                    # Convert to PIL Image and save
-                    from PIL import Image
-                    import numpy as np
-                    
-                    # Convert from tensor to numpy array if needed
-                    if hasattr(rgb_image, 'cpu'):
-                        rgb_image = rgb_image.cpu().numpy()
-                    
-                    # Ensure values are in 0-255 range
-                    rgb_image = (rgb_image * 255).astype(np.uint8)
-                    
-                    img = Image.fromarray(rgb_image)
-                    img.save(filename)
-                    print(f"Frame captured successfully: {filename}")
+                # Render the camera view using Genesis camera render method
+                # Returns (rgb, depth, segmentation, normal) tuple
+                if self.render_mode == 'rgb':
+                    render_result = self.camera.render(rgb=True, depth=False, segmentation=False, normal=False)
+                    image_data = render_result[0]  # RGB image
+                    is_rgb = True
+                elif self.render_mode == 'depth':
+                    render_result = self.camera.render(rgb=False, depth=True, segmentation=False, normal=False)
+                    image_data = render_result[1]  # Depth image
+                    is_rgb = False
+                elif self.render_mode == 'segmentation':
+                    render_result = self.camera.render(rgb=False, depth=False, segmentation=True, normal=False)
+                    image_data = render_result[2]  # Segmentation image
+                    is_rgb = False
+                elif self.render_mode == 'normal':
+                    render_result = self.camera.render(rgb=False, depth=False, segmentation=False, normal=True)
+                    image_data = render_result[3]  # Normal image
+                    is_rgb = False
                 else:
-                    print(f"No cameras available for rendering, falling back to simple visualization")
-                    self._create_position_frame(filename)
+                    raise ValueError(f"Unsupported render_mode: {self.render_mode}")
+                
+                # Convert to PIL Image and save
+                from PIL import Image
+                import numpy as np
+                
+                # Convert from tensor to numpy array if needed
+                if hasattr(image_data, 'cpu'):
+                    image_data = image_data.cpu().numpy()
+                
+                if is_rgb:
+                    # RGB images: ensure values are in 0-255 range
+                    image_data = (image_data * 255).astype(np.uint8)
+                    img = Image.fromarray(image_data)
+                else:
+                    # Depth/Segmentation/Normal: normalize to 0-255 range
+                    if image_data.dtype != np.uint8:
+                        # Normalize to 0-1 range first if needed
+                        if image_data.max() > 1.0:
+                            image_data = image_data / image_data.max()
+                        # Convert to 0-255
+                        image_data = (image_data * 255).astype(np.uint8)
+                    
+                    if render_mode == 'depth':
+                        # Depth images are typically single channel
+                        img = Image.fromarray(image_data.squeeze(), mode='L')
+                    else:
+                        # Segmentation and normal might be multi-channel
+                        img = Image.fromarray(image_data)
+                
+                img.save(filename)
+                print(f"Frame captured successfully ({self.render_mode}): {filename}")
             except Exception as e:
-                print(f"Genesis rendering failed: {e}, falling back to simple visualization")
-                self._create_position_frame(filename)
+                print(f"Genesis rendering failed: {e}")
+                print("Genesis 3D rendering requires BatchRenderer which is only available on Linux x86-64")
+                print(f"Cannot create visualization frame: {filename}")
+                raise RuntimeError(f"Genesis rendering not supported on this platform: {e}")
         else:
-            print(f"Camera not available or scene not built, falling back to simple visualization")
-            self._create_position_frame(filename)
+            error_msg = f"Camera not available ({self.camera is not None}) or scene not built ({self.scene.is_built if hasattr(self.scene, 'is_built') else 'no is_built attr'})"
+            print(error_msg)
+            raise RuntimeError(error_msg)
 
-    def _create_position_frame(self, filename: str) -> None:
-        """Create a frame showing current body positions with bounds."""
-        try:
-            from PIL import Image, ImageDraw, ImageFont
-            # Create a larger visualization image
-            img_width, img_height = 1200, 800
-            img = Image.new('RGB', (img_width, img_height), color='lightblue')
-            draw = ImageDraw.Draw(img)
-            
-            # Draw bounds (ground plane)
-            bounds = self.visualizer.env.physics.bounds
-            x_min, x_max = bounds['x']
-            y_min, y_max = bounds['y']
-            z_min, z_max = bounds['z']
-            
-            # Convert 3D bounds to 2D screen coordinates (top-down view)
-            scale = 100  # pixels per unit
-            offset_x = img_width // 2
-            offset_y = img_height // 2
-            
-            # Draw ground plane as a rectangle
-            ground_left = offset_x + x_min * scale
-            ground_right = offset_x + x_max * scale
-            ground_top = offset_y + y_min * scale
-            ground_bottom = offset_y + y_max * scale
-            
-            draw.rectangle([ground_left, ground_top, ground_right, ground_bottom], 
-                         fill='lightgreen', outline='darkgreen', width=2)
-            
-            # Label ground
-            draw.text((ground_left + 10, ground_top + 10), "Ground Plane", fill='black')
-            
-            # Draw bodies
-            bodies = self.visualizer.env.bodies
-            for i, body in enumerate(bodies):
-                pos = body.state.r
-                # Convert 3D position to 2D screen coordinates
-                x = offset_x + pos[0] * scale
-                y = offset_y + pos[1] * scale
-                
-                # Draw body as a circle with height indication
-                radius = 15
-                if hasattr(body, 'config') and body.config.get('type') == 'sphere':
-                    radius = int(body.config.get('radius', 0.5) * scale)
-                    color = 'blue'
-                    shape = 'sphere'
-                else:
-                    color = 'red'
-                    shape = 'hovercraft'
-                
-                draw.ellipse([x-radius, y-radius, x+radius, y+radius], fill=color, outline='black')
-                
-                # Draw height indicator
-                height_text = f"z={pos[2]:.2f}"
-                draw.text((x + radius + 5, y - 10), height_text, fill='black')
-                
-                # Label the body
-                label = f"{shape} {i}"
-                draw.text((x - 30, y + radius + 5), label, fill='black')
-            
-            # Add title and info
-            title = f"Genesis Simulation - Step {self.visualizer.env.step_count}"
-            draw.text((10, 10), title, fill='black')
-            
-            # Add bounds info
-            bounds_text = f"Bounds: X[{x_min:.1f}, {x_max:.1f}] Y[{y_min:.1f}, {y_max:.1f}] Z[{z_min:.1f}, {z_max:.1f}]"
-            draw.text((10, 30), bounds_text, fill='black')
-            
-            # Add mesh info
-            mesh_info = "Using hoverBody_main.obj mesh (3D visualization not available)"
-            draw.text((10, 50), mesh_info, fill='red')
-            
-            img.save(filename)
-        except ImportError:
-            # If PIL not available, create a text file
-            with open(filename.replace('.png', '.txt'), 'w') as f:
-                bodies = self.visualizer.env.bodies
-                f.write(f"Genesis simulation step {self.visualizer.env.step_count}\n")
-                for i, body in enumerate(bodies):
-                    pos = body.state.r
-                    f.write(f"Body {i}: position {pos}\n")

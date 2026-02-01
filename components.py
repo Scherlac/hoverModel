@@ -141,14 +141,13 @@ class Environment(ABC):
         """Register a visualization component."""
         self.visualizers.append(visualizer)
 
-    def get_specific_visualizer(self, visualizer_type: type) -> Any:
+    def get_specific_visualizer(self, visualizer_type: type, *args, **kwargs) -> Any:
         """Get a specific visualizer by type."""
         for viz in self.visualizers:
             if isinstance(viz, visualizer_type):
                 return viz
         try:
-
-            return visualizer_type(self)
+            return visualizer_type(self, *args, **kwargs)
         except Exception as e:
             print(f"Error creating visualizer {visualizer_type}: {e}")
             return NullVisualizer(self)

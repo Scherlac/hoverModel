@@ -86,35 +86,37 @@ class LoggingSimulationOutput(SimulationOutput):
 class VideoSimulationOutput(SimulationOutput):
     """Video output with Open3D visualization and frame capture."""
 
-    def __init__(self, env: Environment, video_name: str, fps: int = 25):
+    def __init__(self, env: Environment, video_name: str, fps: int = 25, render_mode: str = 'rgb'):
         super().__init__(env)
         self.video_name = video_name
         self.fps = fps
         self.frames_dir = "frames"
         self.frame_count = 0
+        self.render_mode = render_mode
         
         # Choose appropriate visualizer based on environment type
         if hasattr(env, 'physics') and hasattr(env.physics, 'scene'):
             # Genesis environment - use Genesis visualizer
             from genesis_backend import GenesisVisualizer
-            self.visualizer = env.get_specific_visualizer(GenesisVisualizer)
+            self.visualizer = env.get_specific_visualizer(GenesisVisualizer, render_mode=self.render_mode)
         else:
             # Default environment - use Open3D visualizer
             self.visualizer = env.get_specific_visualizer(Open3DVisualizer)
             
         self.visualization_output = self.visualizer.get_visualization_output()
         print(f"Live output using visualizer: {self.visualizer.__class__.__name__} and output: {self.visualization_output.__class__.__name__}")
+        print(f"Render mode: {self.render_mode}")
 
 
 
     def initialize(self) -> None:
-        # Camera setup
+        # Camera setup - match default backend camera position
         if self.visualization_output:
             self.visualization_output.set_camera(
-                position=(10, 0, 5),
-                look_at=(2.5, 0, 5)
+                position=(5, 5, 5),  # Match default backend
+                look_at=(0, 0, 1)    # Match default backend
             )
-            self.visualization_output.set_zoom(0.5)
+            self.visualization_output.set_zoom(0.6)  # Match default backend zoom
 
         os.makedirs(self.frames_dir, exist_ok=True)
         print(f"Creating video: {self.video_name}")

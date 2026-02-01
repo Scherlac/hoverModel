@@ -187,7 +187,7 @@ def create_output(output_type: str, output_params: Dict[str, Any], env: Environm
     ot = output_type.lower()
     if ot in ('console', 'logging'): return LoggingSimulationOutput(env)
     elif ot in ('live', 'visualization'): return LiveVisualizationOutput(env)
-    elif ot == 'video': return VideoSimulationOutput(env, output_params.get('filename', 'demo.mp4'), int(output_params.get('fps', 25)))
+    elif ot == 'video': return VideoSimulationOutput(env, output_params.get('filename', 'demo.mp4'), int(output_params.get('fps', 25)), output_params.get('render_mode', 'rgb'))
     raise click.ClickException(f"Unknown output: {output_type}")
 
 def add_body_to_env(env: Environment, body_config: Dict[str, Any]):
