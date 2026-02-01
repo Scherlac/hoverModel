@@ -26,8 +26,9 @@ class GenesisPhysics(PhysicsEngine):
 
     def __init__(self, config: dict):
         """Initialize Genesis physics engine."""
-        # Initialize Genesis
-        gs.init(backend=gs.cpu)
+        # Initialize Genesis only if not already initialized
+        if not gs._initialized:
+            gs.init(backend=gs.cpu)
 
         # Store configuration
         self.config = config
@@ -226,6 +227,9 @@ class GenesisRigidBody(Body):
             self.set_position_target(np.array(control_value))
         elif control_kind == 'velocity':
             self.set_velocity_target(np.array(control_value))
+        elif control_kind == 'lifting thrust':
+            # Lifting thrust is an upward force (positive z-direction)
+            self.apply_force(np.array([0.0, 0.0, float(control_value)]))
         elif control_kind == 'combined':
             # Handle combined controls
             for kind, value in control_value.items():

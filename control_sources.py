@@ -267,7 +267,7 @@ class HoveringControl(ControlSource):
             return channel
         while len(channel) <= self.lain_index:
             channel.append(None)
-        channel[self.lain_index] = 0.0
+        channel[self.lain_index] = 10.0  # Provide 10N upward thrust to counteract gravity
         return channel
 
     def get_description(self) -> str:
