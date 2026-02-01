@@ -68,7 +68,7 @@ def run(controls, outputs, bodies, backend, start_x, start_y, start_z, steps):
                 body_id = body_param
         else:
             body_id = env.bodies[0].id if env.bodies else None
-        control = create_control(config['type'], config['params'], body_id)
+        control = create_control(config['type'], config['params'], body_id, config.get('steps'))
         control_sources.append(control)
     
     # Run simulation with new control system
@@ -154,33 +154,33 @@ def parse_steps_range(steps_str: str) -> List[Optional[int]]:
         # Single number - treat as start only
         return [int(steps_str), None]
 
-def create_control(control_type: str, params: Dict[str, Any], body_id: str):
+def create_control(control_type: str, params: Dict[str, Any], body_id: str, steps_range: Optional[List[Optional[int]]] = None):
     ct = control_type.lower()
-    if ct in ('hovering', 'hover'): return ControlSourceFactory.create_hovering(body_id)
-    elif ct == 'linear': return ControlSourceFactory.create_linear(body_id, params.get('force', 0.8))
-    elif ct in ('rotational', 'rotate'): return ControlSourceFactory.create_rotational(body_id, params.get('torque', 0.3))
-    elif ct in ('sinusoidal', 'sinusoid'): return ControlSourceFactory.create_sinusoidal(body_id)
-    elif ct == 'chaotic': return ControlSourceFactory.create_chaotic(body_id)
+    if ct in ('hovering', 'hover'): return ControlSourceFactory.create_hovering(body_id, steps_range)
+    elif ct == 'linear': return ControlSourceFactory.create_linear(body_id, params.get('force', 0.8), steps_range)
+    elif ct in ('rotational', 'rotate'): return ControlSourceFactory.create_rotational(body_id, params.get('torque', 0.3), steps_range)
+    elif ct in ('sinusoidal', 'sinusoid'): return ControlSourceFactory.create_sinusoidal(body_id, steps_range)
+    elif ct == 'chaotic': return ControlSourceFactory.create_chaotic(body_id, steps_range)
     elif ct == 'force':
         force = params.get('force', [1.0, 0.0, 0.0])
-        return ControlSourceFactory.create_force(body_id, np.array(force))
+        return ControlSourceFactory.create_force(body_id, np.array(force), steps_range)
     elif ct == 'torque':
         torque = params.get('torque', [0.0, 0.0, 0.1])
-        return ControlSourceFactory.create_torque(body_id, np.array(torque))
+        return ControlSourceFactory.create_torque(body_id, np.array(torque), steps_range)
     elif ct == 'angular_momentum':
         angular_momentum = params.get('angular_momentum', [0.0, 0.0, 0.05])
-        return ControlSourceFactory.create_angular_momentum(body_id, np.array(angular_momentum))
+        return ControlSourceFactory.create_angular_momentum(body_id, np.array(angular_momentum), steps_range)
     elif ct == 'position':
         target_position = params.get('target', [2.0, 0.0, 1.0])
-        return ControlSourceFactory.create_position(body_id, np.array(target_position))
+        return ControlSourceFactory.create_position(body_id, np.array(target_position), steps_range)
     elif ct == 'velocity':
         target_velocity = params.get('target', [1.0, 0.0, 0.0])
-        return ControlSourceFactory.create_velocity(body_id, np.array(target_velocity))
+        return ControlSourceFactory.create_velocity(body_id, np.array(target_velocity), steps_range)
     elif ct == 'combined':
         controls = {}
         for key, value in params.items():
             controls[key] = value
-        return ControlSourceFactory.create_combined(body_id, controls)
+        return ControlSourceFactory.create_combined(body_id, controls, steps_range)
     raise click.ClickException(f"Unknown control: {control_type}")
 
 def create_output(output_type: str, output_params: Dict[str, Any], env: Environment):

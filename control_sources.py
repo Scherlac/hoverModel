@@ -85,6 +85,7 @@ class ControlSource(ABC):
     def __init__(
             self, 
             id: str,
+            steps_range: Optional[List[Optional[int]]] = None,
             kind: Optional[str] = "force",
             typeinfo: Optional[type] = np.ndarray,
             description: Optional[str] = "Provides control signals for body movement",
@@ -100,11 +101,29 @@ class ControlSource(ABC):
         Initialize control source.
         Args:
             id: Unique identifier for body to control
+            steps_range: [start, end] range where control is active, None means entire simulation
             kind: Kind of the control source
             description: Human-readable description
         """
 
         self.lain_index = self.lain_info.index
+        self.steps_range = steps_range or [None, None]
+
+    def is_active_at_step(self, step: int) -> bool:
+        """Check if this control is active at the given step.
+        
+        Args:
+            step: Current simulation step (0-based)
+            
+        Returns:
+            True if control should be active at this step
+        """
+        start, end = self.steps_range
+        if start is not None and step < start:
+            return False
+        if end is not None and step >= end:
+            return False
+        return True
 
     @abstractmethod
     def get_control(self, channel : SignalChannel, step: int) -> SignalChannel:
@@ -126,14 +145,18 @@ class LinearMovementControl(ControlSource):
 
     def __init__(
             self, id: str, 
-            forward_force: float = 0.8):
+            forward_force: float = 0.8,
+            steps_range: Optional[List[Optional[int]]] = None):
         
         super(LinearMovementControl, self).__init__(
-            id = id
+            id = id,
+            steps_range = steps_range
         )
         self.forward_force = forward_force
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        if not self.is_active_at_step(step):
+            return channel
         while len(channel) <= self.lain_index:
             channel.append(None)
         channel[self.lain_index] = np.array([self.forward_force, 0.0, 0.0])
@@ -146,11 +169,13 @@ class LinearMovementControl(ControlSource):
 class RotationalControl(ControlSource):
     """Generates pure rotational movement."""
 
-    def __init__(self, id: str, rotation_torque: float = 0.3):
-        super(RotationalControl, self).__init__(id=id, kind='torque')
+    def __init__(self, id: str, rotation_torque: float = 0.3, steps_range: Optional[List[Optional[int]]] = None):
+        super(RotationalControl, self).__init__(id=id, steps_range=steps_range, kind='torque')
         self.rotation_torque = rotation_torque
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        if not self.is_active_at_step(step):
+            return channel
         while len(channel) <= self.lain_index:
             channel.append(None)
         channel[self.lain_index] = np.array([0.0, 0.0, self.rotation_torque])
@@ -168,9 +193,11 @@ class SinusoidalControl(ControlSource):
                  forward_amplitude: float = 1.0,
                  rotation_amplitude: float = 0.3,
                  forward_freq: float = 0.05,
-                 rotation_freq: float = 0.1):
+                 rotation_freq: float = 0.1,
+                 steps_range: Optional[List[Optional[int]]] = None):
         super(SinusoidalControl, self).__init__(
-            id = id
+            id = id,
+            steps_range = steps_range
         )
         self.forward_amp = forward_amplitude
         self.rotation_amp = rotation_amplitude
@@ -178,6 +205,8 @@ class SinusoidalControl(ControlSource):
         self.rotation_freq = rotation_freq
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        if not self.is_active_at_step(step):
+            return channel
         while len(channel) <= self.lain_index:
             channel.append(None)
         forward = self.forward_amp * np.sin(step * self.forward_freq)
@@ -197,9 +226,11 @@ class ChaoticControl(ControlSource):
                  forward_amplitude: float = 20.0,  # Increased for more aggressive movement
                  rotation_amplitude: float = 5.0,  # Increased for more aggressive rotation
                  forward_freq: float = 0.12,
-                 rotation_freq: float = 0.18):
+                 rotation_freq: float = 0.18,
+                 steps_range: Optional[List[Optional[int]]] = None):
         super(ChaoticControl, self).__init__(
-            id = id
+            id = id,
+            steps_range = steps_range
         )
         self.forward_amp = forward_amplitude
         self.rotation_amp = rotation_amplitude
@@ -207,6 +238,8 @@ class ChaoticControl(ControlSource):
         self.rotation_freq = rotation_freq
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        if not self.is_active_at_step(step):
+            return channel
         while len(channel) <= self.lain_index:
             channel.append(None)
         forward = self.forward_amp * np.sin(step * self.forward_freq)
@@ -220,15 +253,18 @@ class ChaoticControl(ControlSource):
 class HoveringControl(ControlSource):
     """Generates zero control signals for hovering tests."""
 
-    def __init__(self, id: str):
+    def __init__(self, id: str, steps_range: Optional[List[Optional[int]]] = None):
         super(HoveringControl, self).__init__(
             id = id,
+            steps_range = steps_range,
             kind = "lifting thrust",
             typeinfo = float,
             description = "Provides control signals for ground effects (hovering)",
         )
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        if not self.is_active_at_step(step):
+            return channel
         while len(channel) <= self.lain_index:
             channel.append(None)
         channel[self.lain_index] = 0.0
@@ -241,9 +277,10 @@ class HoveringControl(ControlSource):
 class ForceControl(ControlSource):
     """Generates constant force control signals."""
 
-    def __init__(self, id: str, force: np.ndarray = np.array([1.0, 0.0, 0.0])):
+    def __init__(self, id: str, force: np.ndarray = np.array([1.0, 0.0, 0.0]), steps_range: Optional[List[Optional[int]]] = None):
         super(ForceControl, self).__init__(
             id = id,
+            steps_range = steps_range,
             kind = "force",
             typeinfo = np.ndarray,
             description = "Provides constant 3D force vector control",
@@ -251,6 +288,8 @@ class ForceControl(ControlSource):
         self.force = force
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        if not self.is_active_at_step(step):
+            return channel
         while len(channel) <= self.lain_index:
             channel.append(None)
         channel[self.lain_index] = self.force.copy()
@@ -263,9 +302,10 @@ class ForceControl(ControlSource):
 class TorqueControl(ControlSource):
     """Generates constant torque control signals."""
 
-    def __init__(self, id: str, torque: np.ndarray = np.array([0.0, 0.0, 0.1])):
+    def __init__(self, id: str, torque: np.ndarray = np.array([0.0, 0.0, 0.1]), steps_range: Optional[List[Optional[int]]] = None):
         super(TorqueControl, self).__init__(
             id = id,
+            steps_range = steps_range,
             kind = "torque",
             typeinfo = np.ndarray,
             description = "Provides constant 3D torque vector control",
@@ -273,6 +313,8 @@ class TorqueControl(ControlSource):
         self.torque = torque
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        if not self.is_active_at_step(step):
+            return channel
         while len(channel) <= self.lain_index:
             channel.append(None)
         channel[self.lain_index] = self.torque.copy()
@@ -285,9 +327,10 @@ class TorqueControl(ControlSource):
 class AngularMomentumControl(ControlSource):
     """Generates angular momentum control signals."""
 
-    def __init__(self, id: str, angular_momentum: np.ndarray = np.array([0.0, 0.0, 0.05])):
+    def __init__(self, id: str, angular_momentum: np.ndarray = np.array([0.0, 0.0, 0.05]), steps_range: Optional[List[Optional[int]]] = None):
         super(AngularMomentumControl, self).__init__(
             id = id,
+            steps_range = steps_range,
             kind = "angular_momentum",
             typeinfo = np.ndarray,
             description = "Provides angular momentum vector control",
@@ -295,6 +338,8 @@ class AngularMomentumControl(ControlSource):
         self.angular_momentum = angular_momentum
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        if not self.is_active_at_step(step):
+            return channel
         while len(channel) <= self.lain_index:
             channel.append(None)
         channel[self.lain_index] = self.angular_momentum.copy()
@@ -307,9 +352,10 @@ class AngularMomentumControl(ControlSource):
 class PositionControl(ControlSource):
     """Generates position setpoint control signals."""
 
-    def __init__(self, id: str, target_position: np.ndarray = np.array([2.0, 0.0, 1.0])):
+    def __init__(self, id: str, target_position: np.ndarray = np.array([2.0, 0.0, 1.0]), steps_range: Optional[List[Optional[int]]] = None):
         super(PositionControl, self).__init__(
             id = id,
+            steps_range = steps_range,
             kind = "position",
             typeinfo = np.ndarray,
             description = "Provides target position setpoint control",
@@ -317,6 +363,8 @@ class PositionControl(ControlSource):
         self.target_position = target_position
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        if not self.is_active_at_step(step):
+            return channel
         while len(channel) <= self.lain_index:
             channel.append(None)
         channel[self.lain_index] = self.target_position.copy()
@@ -329,9 +377,10 @@ class PositionControl(ControlSource):
 class VelocityControl(ControlSource):
     """Generates velocity setpoint control signals."""
 
-    def __init__(self, id: str, target_velocity: np.ndarray = np.array([1.0, 0.0, 0.0])):
+    def __init__(self, id: str, target_velocity: np.ndarray = np.array([1.0, 0.0, 0.0]), steps_range: Optional[List[Optional[int]]] = None):
         super(VelocityControl, self).__init__(
             id = id,
+            steps_range = steps_range,
             kind = "velocity",
             typeinfo = np.ndarray,
             description = "Provides target velocity setpoint control",
@@ -339,6 +388,8 @@ class VelocityControl(ControlSource):
         self.target_velocity = target_velocity
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        if not self.is_active_at_step(step):
+            return channel
         while len(channel) <= self.lain_index:
             channel.append(None)
         channel[self.lain_index] = self.target_velocity.copy()
@@ -351,7 +402,7 @@ class VelocityControl(ControlSource):
 class CombinedControl(ControlSource):
     """Combines multiple control types for a single body."""
 
-    def __init__(self, id: str, controls: Dict[str, Any]):
+    def __init__(self, id: str, controls: Dict[str, Any], steps_range: Optional[List[Optional[int]]] = None):
         """
         Initialize combined control.
 
@@ -361,9 +412,11 @@ class CombinedControl(ControlSource):
                      {'force': np.array([1.0, 0.0, 0.0]),
                       'torque': np.array([0.0, 0.0, 0.1]),
                       'angular_momentum': np.array([0.0, 0.0, 0.05])}
+            steps_range: [start, end] range where control is active
         """
         super(CombinedControl, self).__init__(
             id = id,
+            steps_range = steps_range,
             kind = "combined",
             typeinfo = dict,
             description = "Provides multiple control types simultaneously",
@@ -371,6 +424,8 @@ class CombinedControl(ControlSource):
         self.controls = controls
 
     def get_control(self, channel: SignalChannel, step: int) -> SignalChannel:
+        if not self.is_active_at_step(step):
+            return channel
         while len(channel) <= self.lain_index:
             channel.append(None)
         channel[self.lain_index] = self.controls.copy()
@@ -384,48 +439,48 @@ class ControlSourceFactory:
     """Factory for creating control sources."""
 
     @staticmethod
-    def create_hovering(id: str) -> ControlSource:
-        return HoveringControl(id)
+    def create_hovering(id: str, steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return HoveringControl(id, steps_range)
 
     @staticmethod
-    def create_linear(id: str, forward_force: float = 0.8) -> ControlSource:
-        return LinearMovementControl(id, forward_force)
+    def create_linear(id: str, forward_force: float = 0.8, steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return LinearMovementControl(id, forward_force, steps_range)
 
     @staticmethod
-    def create_rotational(id: str, rotation_torque: float = 0.3) -> ControlSource:
-        return RotationalControl(id, rotation_torque)
+    def create_rotational(id: str, rotation_torque: float = 0.3, steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return RotationalControl(id, rotation_torque, steps_range)
 
     @staticmethod
-    def create_sinusoidal(id: str) -> ControlSource:
-        return SinusoidalControl(id)
+    def create_sinusoidal(id: str, steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return SinusoidalControl(id, steps_range=steps_range)
 
     @staticmethod
-    def create_chaotic(id: str) -> ControlSource:
-        return ChaoticControl(id)
+    def create_chaotic(id: str, steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return ChaoticControl(id, steps_range=steps_range)
 
     @staticmethod
-    def create_force(id: str, force: np.ndarray = np.array([1.0, 0.0, 0.0])) -> ControlSource:
-        return ForceControl(id, force)
+    def create_force(id: str, force: np.ndarray = np.array([1.0, 0.0, 0.0]), steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return ForceControl(id, force, steps_range)
 
     @staticmethod
-    def create_torque(id: str, torque: np.ndarray = np.array([0.0, 0.0, 0.1])) -> ControlSource:
-        return TorqueControl(id, torque)
+    def create_torque(id: str, torque: np.ndarray = np.array([0.0, 0.0, 0.1]), steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return TorqueControl(id, torque, steps_range)
 
     @staticmethod
-    def create_angular_momentum(id: str, angular_momentum: np.ndarray = np.array([0.0, 0.0, 0.05])) -> ControlSource:
-        return AngularMomentumControl(id, angular_momentum)
+    def create_angular_momentum(id: str, angular_momentum: np.ndarray = np.array([0.0, 0.0, 0.05]), steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return AngularMomentumControl(id, angular_momentum, steps_range)
 
     @staticmethod
-    def create_position(id: str, target_position: np.ndarray = np.array([2.0, 0.0, 1.0])) -> ControlSource:
-        return PositionControl(id, target_position)
+    def create_position(id: str, target_position: np.ndarray = np.array([2.0, 0.0, 1.0]), steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return PositionControl(id, target_position, steps_range)
 
     @staticmethod
-    def create_velocity(id: str, target_velocity: np.ndarray = np.array([1.0, 0.0, 0.0])) -> ControlSource:
-        return VelocityControl(id, target_velocity)
+    def create_velocity(id: str, target_velocity: np.ndarray = np.array([1.0, 0.0, 0.0]), steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return VelocityControl(id, target_velocity, steps_range)
 
     @staticmethod
-    def create_combined(id: str, controls: Dict[str, Any]) -> ControlSource:
-        return CombinedControl(id, controls)
+    def create_combined(id: str, controls: Dict[str, Any], steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return CombinedControl(id, controls, steps_range)
     """Factory for creating control sources."""
 
     @staticmethod
@@ -433,17 +488,17 @@ class ControlSourceFactory:
         return HoveringControl(id)
 
     @staticmethod
-    def create_linear(id: str, forward_force: float = 0.8) -> ControlSource:
-        return LinearMovementControl(id, forward_force)
+    def create_linear(id: str, forward_force: float = 0.8, steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return LinearMovementControl(id, forward_force, steps_range)
 
     @staticmethod
-    def create_rotational(id: str, rotation_torque: float = 0.3) -> ControlSource:
-        return RotationalControl(id, rotation_torque)
+    def create_rotational(id: str, rotation_torque: float = 0.3, steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return RotationalControl(id, rotation_torque, steps_range)
 
     @staticmethod
-    def create_sinusoidal(id: str) -> ControlSource:
-        return SinusoidalControl(id)
+    def create_sinusoidal(id: str, steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return SinusoidalControl(id, steps_range=steps_range)
 
     @staticmethod
-    def create_chaotic(id: str) -> ControlSource:
-        return ChaoticControl(id)
+    def create_chaotic(id: str, steps_range: Optional[List[Optional[int]]] = None) -> ControlSource:
+        return ChaoticControl(id, steps_range=steps_range)

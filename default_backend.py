@@ -667,7 +667,12 @@ class DefaultBodyEnv(Environment):
             # Process outputs
             for output in self.outputs:
                 # For backward compatibility, pass the first body's control
-                first_control = channel[control_sources[0].lain_index] if control_sources else np.zeros(2)
+                # If control is inactive (not in channel), use zero control
+                if control_sources and len(channel) > control_sources[0].lain_index and channel[control_sources[0].lain_index] is not None:
+                    first_control = channel[control_sources[0].lain_index]
+                else:
+                    first_control = np.zeros(2)  # Zero control when inactive
+                
                 if isinstance(first_control, (tuple, list)):
                     first_control = np.array(first_control)
                 elif isinstance(first_control, (int, float)):

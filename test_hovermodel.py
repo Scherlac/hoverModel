@@ -193,40 +193,30 @@ def test_body_step_range_parsing():
     assert config['steps'] == [20, 80]  # Range: start=20, end=80
 
 
-@pytest.mark.skip(reason="Step range feature not yet implemented")
 def test_control_step_range_execution():
     """Test that controls are only active during their specified step ranges."""
-    env = DefaultBodyEnv()
-    body_id = env.bodies[0].id
+    from control_sources import ControlSourceFactory
+    from control_sources import SignalChannel
     
-    # This test will pass once step range logic is implemented
-    # For now, it documents the expected behavior
+    # Create a linear control that should only be active from steps 5-15
+    control = ControlSourceFactory.create_linear("test_body", 2.0, [5, 15])
     
-    # Create a control that should only be active from steps 10-20
-    # control_config = parse_spec("linear:force=5.0,steps=10-20", "control")
-    # control = create_control(control_config['type'], control_config['params'], body_id)
+    # Test steps before range - should not be active
+    channel = SignalChannel()
+    channel = control.get_control(channel, 3)  # Step 3
+    assert len(channel) <= control.lain_index or channel[control.lain_index] is None  # No control signal
     
-    # Run simulation for 30 steps
-    # positions = []
-    # for step in range(30):
-    #     env.run_simulation_with_controls([control], steps=1)
-    #     positions.append(env.bodies[0].state.r.copy())
+    # Test steps within range - should be active
+    channel = SignalChannel()
+    channel = control.get_control(channel, 10)  # Step 10
+    assert len(channel) > control.lain_index and channel[control.lain_index] is not None  # Control signal present
+    import numpy as np
+    np.testing.assert_array_equal(channel[control.lain_index], np.array([2.0, 0.0, 0.0]))
     
-    # Check that movement only occurs during steps 10-20
-    # for step in range(10):
-    #     assert np.allclose(positions[step], positions[0], atol=0.01)  # No movement before step 10
-    
-    # movement_detected = False
-    # for step in range(10, 21):  # Steps 10-20
-    #     if not np.allclose(positions[step], positions[step-1], atol=0.01):
-    #         movement_detected = True
-    #         break
-    # assert movement_detected, "Movement should occur during active step range"
-    
-    # for step in range(21, 30):  # Steps 21-29
-    #     assert np.allclose(positions[step], positions[20], atol=0.01)  # No movement after step 20
-    
-    pass  # Placeholder until implementation
+    # Test steps after range - should not be active
+    channel = SignalChannel()
+    channel = control.get_control(channel, 20)  # Step 20
+    assert len(channel) <= control.lain_index or channel[control.lain_index] is None  # No control signal
 
 
 @pytest.mark.skip(reason="Step range feature not yet implemented")
