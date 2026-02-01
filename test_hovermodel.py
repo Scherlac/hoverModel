@@ -3,9 +3,29 @@ import numpy as np
 import subprocess
 import sys
 import os
+import shutil
 from default_backend import DefaultBodyEnv
 from control_sources import ControlSourceFactory
 from simulation_outputs import LoggingSimulationOutput
+
+
+def check_ffmpeg_available():
+    """Check if FFmpeg is available on the system."""
+    try:
+        result = subprocess.run(['ffmpeg', '-version'], 
+                              capture_output=True, 
+                              text=True, 
+                              timeout=5)
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
+        return False
+
+
+def cleanup_frames_dir():
+    """Clean up any remaining frames directory."""
+    frames_dir = "frames"
+    if os.path.exists(frames_dir):
+        shutil.rmtree(frames_dir)
 
 
 def test_linear_control_causes_movement():
@@ -215,11 +235,16 @@ def test_cli_run_help_command():
 
 def test_cli_linear_video_example():
     """Test the CLI example: python demo.py run --control linear:force=5.0,steps=100 --output video:filename=linear_demo.mp4:fps=10"""
+    # Skip if FFmpeg is not available
+    if not check_ffmpeg_available():
+        pytest.skip("FFmpeg not available - skipping video test")
+    
     video_file = "linear_demo.mp4"
     
-    # Clean up any existing file
+    # Clean up any existing files
     if os.path.exists(video_file):
         os.remove(video_file)
+    cleanup_frames_dir()
     
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
@@ -231,23 +256,28 @@ def test_cli_linear_video_example():
     assert result.returncode == 0
     assert "Running simulation with 100 steps..." in result.stdout
     assert "Creating video:" in result.stdout
-    # Video file creation may fail if FFmpeg is not installed
-    # If it exists and has content, that's great, but don't require it
-    if os.path.exists(video_file):
-        assert os.path.getsize(video_file) > 0  # File has content if it exists
+    # Video must be created since FFmpeg is available
+    assert os.path.exists(video_file), "Video file should be created"
+    assert os.path.getsize(video_file) > 0, "Video file should have content"
     
     # Clean up
     if os.path.exists(video_file):
         os.remove(video_file)
+    cleanup_frames_dir()
 
 
 def test_cli_bouncing_video_example():
     """Test the CLI example: python demo.py run --control linear:force=20.0,steps=100 --output video:filename=bouncing_demo.mp4:fps=10 --start-x=0.0 --start-y=0.0 --start-z=5.0"""
+    # Skip if FFmpeg is not available
+    if not check_ffmpeg_available():
+        pytest.skip("FFmpeg not available - skipping video test")
+    
     video_file = "bouncing_demo.mp4"
     
-    # Clean up any existing file
+    # Clean up any existing files
     if os.path.exists(video_file):
         os.remove(video_file)
+    cleanup_frames_dir()
     
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
@@ -262,22 +292,28 @@ def test_cli_bouncing_video_example():
     assert result.returncode == 0
     assert "Running simulation with 100 steps..." in result.stdout
     assert "Creating video:" in result.stdout
-    # Video file creation may fail if FFmpeg is not installed
-    if os.path.exists(video_file):
-        assert os.path.getsize(video_file) > 0  # File has content if it exists
+    # Video must be created since FFmpeg is available
+    assert os.path.exists(video_file), "Video file should be created"
+    assert os.path.getsize(video_file) > 0, "Video file should have content"
     
     # Clean up
     if os.path.exists(video_file):
         os.remove(video_file)
+    cleanup_frames_dir()
 
 
 def test_cli_rotational_video_example():
     """Test the CLI example: python demo.py run --control rotational:torque=1.0,steps=150 --output video:filename=rotation.mp4:fps=15"""
+    # Skip if FFmpeg is not available
+    if not check_ffmpeg_available():
+        pytest.skip("FFmpeg not available - skipping video test")
+    
     video_file = "rotation.mp4"
     
-    # Clean up any existing file
+    # Clean up any existing files
     if os.path.exists(video_file):
         os.remove(video_file)
+    cleanup_frames_dir()
     
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
@@ -289,22 +325,28 @@ def test_cli_rotational_video_example():
     assert result.returncode == 0
     assert "Running simulation with 150 steps..." in result.stdout
     assert "Creating video:" in result.stdout
-    # Video file creation may fail if FFmpeg is not installed
-    if os.path.exists(video_file):
-        assert os.path.getsize(video_file) > 0  # File has content if it exists
+    # Video must be created since FFmpeg is available
+    assert os.path.exists(video_file), "Video file should be created"
+    assert os.path.getsize(video_file) > 0, "Video file should have content"
     
     # Clean up
     if os.path.exists(video_file):
         os.remove(video_file)
+    cleanup_frames_dir()
 
 
 def test_cli_custom_start_video_example():
     """Test the CLI example: python demo.py run --control linear:force=10.0:steps=100 --output video:filename=custom_start.mp4:fps=10 --start-x=2.0 --start-y=1.0 --start-z=3.0"""
+    # Skip if FFmpeg is not available
+    if not check_ffmpeg_available():
+        pytest.skip("FFmpeg not available - skipping video test")
+    
     video_file = "custom_start.mp4"
     
-    # Clean up any existing file
+    # Clean up any existing files
     if os.path.exists(video_file):
         os.remove(video_file)
+    cleanup_frames_dir()
     
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
@@ -319,22 +361,28 @@ def test_cli_custom_start_video_example():
     assert result.returncode == 0
     assert "Running simulation with 100 steps..." in result.stdout
     assert "Creating video:" in result.stdout
-    # Video file creation may fail if FFmpeg is not installed
-    if os.path.exists(video_file):
-        assert os.path.getsize(video_file) > 0  # File has content if it exists
+    # Video must be created since FFmpeg is available
+    assert os.path.exists(video_file), "Video file should be created"
+    assert os.path.getsize(video_file) > 0, "Video file should have content"
     
     # Clean up
     if os.path.exists(video_file):
         os.remove(video_file)
+    cleanup_frames_dir()
 
 
 def test_cli_chaotic_video_example():
     """Test the CLI example: python demo.py run --control chaotic:steps=200 --output video:filename=chaos.mp4:fps=20"""
+    # Skip if FFmpeg is not available
+    if not check_ffmpeg_available():
+        pytest.skip("FFmpeg not available - skipping video test")
+    
     video_file = "chaos.mp4"
     
-    # Clean up any existing file
+    # Clean up any existing files
     if os.path.exists(video_file):
         os.remove(video_file)
+    cleanup_frames_dir()
     
     result = subprocess.run([
         sys.executable, "demo.py", "run", 
@@ -346,13 +394,14 @@ def test_cli_chaotic_video_example():
     assert result.returncode == 0
     assert "Running simulation with 200 steps..." in result.stdout
     assert "Creating video:" in result.stdout
-    # Video file creation may fail if FFmpeg is not installed
-    if os.path.exists(video_file):
-        assert os.path.getsize(video_file) > 0  # File has content if it exists
+    # Video must be created since FFmpeg is available
+    assert os.path.exists(video_file), "Video file should be created"
+    assert os.path.getsize(video_file) > 0, "Video file should have content"
     
     # Clean up
     if os.path.exists(video_file):
         os.remove(video_file)
+    cleanup_frames_dir()
 
 
 # Live Visualization Documentation Verification Tests

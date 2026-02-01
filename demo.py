@@ -81,7 +81,8 @@ def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
     if spec_type == 'control': config['steps'] = 50
     
     if len(parts) > 1:
-        # Join all parts after type and split on commas to get individual parameters
+        # For output specs, parameters are separated by ':', for control specs by ','
+        separator = ':' if spec_type == 'output' else ','
         param_str = ':'.join(parts[1:])
         
         # Parse parameters, respecting brackets
@@ -95,7 +96,7 @@ def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
             elif char == ']':
                 in_bracket = False
                 current += char
-            elif char == ',' and not in_bracket:
+            elif char == separator and not in_bracket:
                 param_parts.append(current.strip())
                 current = ''
             else:

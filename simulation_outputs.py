@@ -202,7 +202,7 @@ class VideoSimulationOutput(SimulationOutput):
         if success and os.path.exists(self.frames_dir):
             try:
                 shutil.rmtree(self.frames_dir)
-                print(f"🗑️  Frames directory '{self.frames_dir}' cleaned up")
+                print(f"Frames directory '{self.frames_dir}' cleaned up")
             except Exception as e:
                 print(f"⚠️  Warning: Could not remove frames directory: {e}")
         elif not success:
