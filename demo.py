@@ -111,7 +111,11 @@ def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
                 v = v.strip()
                 
                 if spec_type == 'control' and k == 'steps':
-                    config['steps'] = int(v)
+                    # Try to parse as int, otherwise keep as string (for ranges like "10-50")
+                    try:
+                        config['steps'] = int(v)
+                    except ValueError:
+                        config['steps'] = v
                 else:
                 # Check if this is a vector parameter (contains commas)
                     if ',' in v and k in ['force', 'torque', 'angular_momentum', 'target', 'position']:
@@ -125,11 +129,19 @@ def parse_spec(spec: str, spec_type: str) -> Dict[str, Any]:
                         # Keep body as string
                         config['params'][k] = v
                     else:
-                        # Try to parse as single number, otherwise keep as string
-                        try:
-                            config['params'][k] = float(v)
-                        except ValueError:
-                            config['params'][k] = v
+                        # Handle steps parameter for outputs and bodies
+                        if k == 'steps':
+                            # Try to parse as int, otherwise keep as string (for ranges like "10-50")
+                            try:
+                                config['steps'] = int(v)
+                            except ValueError:
+                                config['steps'] = v
+                        else:
+                            # Try to parse as single number, otherwise keep as string
+                            try:
+                                config['params'][k] = float(v)
+                            except ValueError:
+                                config['params'][k] = v
     
     return config
 

@@ -202,7 +202,7 @@ python demo.py run --control linear:force=20.0 --output video:filename=bouncing.
 # Control active only during specific steps
 python demo.py run --control linear:force=5.0,steps=10-50 --output console --steps 100
 # Output active only during specific steps  
-python demo.py run --control chaotic --output video:filename=partial.mp4:fps=10,steps=25-75 --steps 100
+python demo.py run --control chaotic --output video:filename=partial.mp4:fps=10:steps=25-75 --steps 100
 # Body appears/disappears during simulation (planned feature)
 python demo.py run --control hovering --body sphere:radius=0.5,mass=2.0,steps=20-80 --output console --steps 100
 

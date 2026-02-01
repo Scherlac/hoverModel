@@ -7,6 +7,7 @@ import shutil
 from default_backend import DefaultBodyEnv
 from control_sources import ControlSourceFactory
 from simulation_outputs import LoggingSimulationOutput
+from demo import parse_spec
 
 
 def check_ffmpeg_available():
@@ -137,6 +138,174 @@ def test_chaotic_control():
     # Should have moved from initial position
     final_pos = env.bodies[0].state.r
     assert not np.allclose(final_pos, [0.0, 0.0, 1.0], atol=0.01)
+
+
+# Step Range Feature Tests (Planned Implementation)
+
+def test_control_step_range_parsing():
+    """Test that control specifications with step ranges are parsed correctly."""
+    from demo import parse_spec
+    
+    # Test step range parsing
+    config = parse_spec("linear:force=5.0,steps=10-50", "control")
+    assert config['type'] == 'linear'
+    assert config['params']['force'] == 5.0
+    assert config['steps'] == "10-50"  # Should be parsed as string for now
+    
+    # Test single step start
+    config = parse_spec("rotational:torque=1.0,steps=25", "control")
+    assert config['type'] == 'rotational'
+    assert config['params']['torque'] == 1.0
+    assert config['steps'] == 25  # Single numbers are parsed as int
+    
+    # Test no steps specified (default behavior)
+    config = parse_spec("hovering", "control")
+    assert config['type'] == 'hovering'
+    assert config['steps'] == 50  # Default value
+
+
+def test_output_step_range_parsing():
+    """Test that output specifications with step ranges are parsed correctly."""
+    from demo import parse_spec
+    
+    # Test video output with step range
+    config = parse_spec("video:filename=test.mp4:fps=10:steps=5-30", "output")
+    assert config['type'] == 'video'
+    assert config['params']['filename'] == 'test.mp4'
+    assert config['params']['fps'] == 10.0
+    assert config['steps'] == "5-30"  # Ranges are kept as strings  # Should be parsed as string
+    
+    # Test console output with step range
+    config = parse_spec("console:steps=10", "output")
+    assert config['type'] == 'console'
+    assert config['steps'] == 10  # Single numbers are parsed as int
+
+
+def test_body_step_range_parsing():
+    """Test that body specifications with step ranges are parsed correctly."""
+    from demo import parse_spec
+    
+    # Test body with step range
+    config = parse_spec("sphere:radius=0.5,mass=2.0,steps=20-80", "body")
+    assert config['type'] == 'sphere'
+    assert config['params']['radius'] == 0.5
+    assert config['params']['mass'] == 2.0
+    assert config['steps'] == "20-80"  # Ranges are kept as strings
+
+
+@pytest.mark.skip(reason="Step range feature not yet implemented")
+def test_control_step_range_execution():
+    """Test that controls are only active during their specified step ranges."""
+    env = DefaultBodyEnv()
+    body_id = env.bodies[0].id
+    
+    # This test will pass once step range logic is implemented
+    # For now, it documents the expected behavior
+    
+    # Create a control that should only be active from steps 10-20
+    # control_config = parse_spec("linear:force=5.0,steps=10-20", "control")
+    # control = create_control(control_config['type'], control_config['params'], body_id)
+    
+    # Run simulation for 30 steps
+    # positions = []
+    # for step in range(30):
+    #     env.run_simulation_with_controls([control], steps=1)
+    #     positions.append(env.bodies[0].state.r.copy())
+    
+    # Check that movement only occurs during steps 10-20
+    # for step in range(10):
+    #     assert np.allclose(positions[step], positions[0], atol=0.01)  # No movement before step 10
+    
+    # movement_detected = False
+    # for step in range(10, 21):  # Steps 10-20
+    #     if not np.allclose(positions[step], positions[step-1], atol=0.01):
+    #         movement_detected = True
+    #         break
+    # assert movement_detected, "Movement should occur during active step range"
+    
+    # for step in range(21, 30):  # Steps 21-29
+    #     assert np.allclose(positions[step], positions[20], atol=0.01)  # No movement after step 20
+    
+    pass  # Placeholder until implementation
+
+
+@pytest.mark.skip(reason="Step range feature not yet implemented")
+def test_output_step_range_execution():
+    """Test that outputs are only active during their specified step ranges."""
+    # This test will validate that outputs only produce data during their step ranges
+    # For example, video output should only capture frames during active steps
+    # Console output should only log during active steps
+    pass  # Placeholder until implementation
+
+
+@pytest.mark.skip(reason="Step range feature not yet implemented")  
+def test_body_step_range_execution():
+    """Test that bodies appear/disappear according to their step ranges."""
+    # This test will validate that bodies are only present in the simulation
+    # during their specified step ranges
+    pass  # Placeholder until implementation
+
+
+@pytest.mark.skip(reason="Step range feature not yet implemented")
+def test_cli_control_step_range_example():
+    """Test CLI example with control step range: python demo.py run --control linear:force=5.0,steps=10-50 --output console --steps 100"""
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", 
+        "--control", "linear:force=5.0,steps=10-50", 
+        "--output", "console",
+        "--steps", "100"
+    ], capture_output=True, text=True, cwd=".")
+    
+    # Once implemented, this should show movement only during steps 10-50
+    # For now, it will behave as if steps parameter is ignored
+    assert result.returncode == 0
+    assert "Running simulation with 100 steps..." in result.stdout
+
+
+@pytest.mark.skip(reason="Step range feature not yet implemented")
+def test_cli_output_step_range_example():
+    """Test CLI example with output step range: python demo.py run --control chaotic --output video:filename=partial.mp4:fps=10:steps=25-75 --steps 100"""
+    if not check_ffmpeg_available():
+        pytest.skip("FFmpeg not available - skipping video test")
+    
+    video_file = "partial.mp4"
+    
+    # Clean up any existing files
+    if os.path.exists(video_file):
+        os.remove(video_file)
+    cleanup_frames_dir()
+    
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", 
+        "--control", "chaotic", 
+        "--output", f"video:filename={video_file}:fps=10:steps=25-75",
+        "--steps", "100"
+    ], capture_output=True, text=True, cwd=".")
+    
+    # Once implemented, video should only contain frames from steps 25-75
+    assert result.returncode == 0
+    assert "Creating video:" in result.stdout
+    
+    # Clean up
+    if os.path.exists(video_file):
+        os.remove(video_file)
+    cleanup_frames_dir()
+
+
+@pytest.mark.skip(reason="Step range feature not yet implemented")
+def test_cli_body_step_range_example():
+    """Test CLI example with body step range: python demo.py run --control hovering --body sphere:radius=0.5,mass=2.0,steps=20-80 --output console --steps 100"""
+    result = subprocess.run([
+        sys.executable, "demo.py", "run", 
+        "--control", "hovering", 
+        "--body", "sphere:radius=0.5,mass=2.0,steps=20-80",
+        "--output", "console",
+        "--steps", "100"
+    ], capture_output=True, text=True, cwd=".")
+    
+    # Once implemented, sphere should only be present during steps 20-80
+    assert result.returncode == 0
+    assert "Running simulation with 100 steps..." in result.stdout
 
 
 # CLI Documentation Verification Tests
