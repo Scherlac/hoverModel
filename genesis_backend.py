@@ -79,7 +79,7 @@ class GenesisPhysics(PhysicsEngine):
             entity = self.scene.add_entity(
                 gs.morphs.Mesh(
                     file=str(mesh_file),
-                    scale=body_config.get('scale', 0.1),
+                    scale=body_config.get('scale', 1.0),  # Changed from 0.1 to 1.0 to match Open3D size
                     pos=tuple(body_config.get('initial_pos', [0.0, 0.0, 1.0])),
                 )
             )
@@ -412,7 +412,7 @@ class GenesisBodyEnv(Environment):
                 'mass': self.config.get('mass', 1.0),
                 'moment_of_inertia': self.config.get('momentum', 0.1),
                 'initial_pos': (0.0, 0.0, 1.0),
-                'scale': 0.1,
+                'scale': 1.0,  # Match Open3D visualizer size
                 'mesh_file': ASSET_ROOT / "hoverBody_main.obj"
             }
             genesis_body = self.physics.add_body(hovercraft_config)
@@ -657,6 +657,38 @@ class GenesisVisualizationOutput(VisualizationOutput):
     def render_frame(self) -> None:
         """Render frame - handled by Genesis internally."""
         pass
+
+    def start_recording(self) -> None:
+        """Start video recording using Genesis camera."""
+        # Ensure scene is built and camera is available
+        if hasattr(self.visualizer, 'env') and hasattr(self.visualizer.env, 'physics'):
+            self.visualizer.env.physics.ensure_scene_built()
+            if self.camera is None:
+                self.camera = getattr(self.visualizer.env.physics, 'camera', None)
+        
+        if self.camera and self.scene.is_built:
+            try:
+                self.camera.start_recording()
+                print("Genesis camera recording started")
+            except Exception as e:
+                print(f"Failed to start Genesis recording: {e}")
+                raise RuntimeError(f"Genesis recording not supported: {e}")
+        else:
+            error_msg = f"Camera not available ({self.camera is not None}) or scene not built ({self.scene.is_built if hasattr(self.scene, 'is_built') else 'no is_built attr'})"
+            print(error_msg)
+            raise RuntimeError(error_msg)
+
+    def stop_recording(self, filename: str, fps: int = 25) -> None:
+        """Stop video recording and save to file."""
+        if self.camera:
+            try:
+                self.camera.stop_recording(save_to_filename=filename, fps=fps)
+                print(f"Genesis video saved: {filename}")
+            except Exception as e:
+                print(f"Failed to stop Genesis recording: {e}")
+                raise RuntimeError(f"Genesis recording save failed: {e}")
+        else:
+            print("No camera available for stopping recording")
 
     def capture_frame(self, filename: str, render_mode: str = 'rgb') -> None:
         """Capture frame to file using Genesis camera rendering.
