@@ -85,7 +85,16 @@ def test_hovering_control_maintains_stability(backend_env):
     final_pos = env.bodies[0].state.r
     
     # Position should not change significantly (hovering)
-    assert np.allclose(final_pos, initial_pos, atol=0.1)
+    assert np.allclose(final_pos, initial_pos, atol=0.05)
+
+
+def test_default_body_mass_consistency(backend_env):
+    """Test that the default body has the same mass in both backends."""
+    env = backend_env
+    body = env.bodies[0]
+    
+    # Both backends should default to mass = 1.0
+    assert body.mass == 1.0, f"Expected mass=1.0, got {body.mass}"
 
 
 def test_simulation_runs_without_errors(backend_env):

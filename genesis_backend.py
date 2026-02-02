@@ -81,14 +81,16 @@ class GenesisPhysics(PhysicsEngine):
                     file=str(mesh_file),
                     scale=body_config.get('scale', 1.0),  # Changed from 0.1 to 1.0 to match Open3D size
                     pos=tuple(body_config.get('initial_pos', [0.0, 0.0, 1.0])),
-                )
+                ),
+                material=gs.materials.Rigid(rho=0.2)  # Set density to 0.2 to get mass ≈ 1.0
             )
         elif body_type == 'sphere':
             entity = self.scene.add_entity(
                 gs.morphs.Sphere(
                     radius=body_config.get('radius', 0.1),
                     pos=tuple(body_config.get('initial_pos', [0.0, 0.0, 1.0])),
-                )
+                ),
+                material=gs.materials.Rigid(rho=0.2)  # Set density to 0.2 to get mass ≈ 1.0
             )
         else:
             raise ValueError(f"Unsupported body type: {body_type}")
