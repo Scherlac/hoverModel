@@ -212,8 +212,8 @@ class DefaultBody(Body):
             0.0
         ])
 
-        # Friction force (proportional to height and velocity)
-        friction_force = -self.friction_coefficient * self.state.r[2] * self.state.v
+        # Friction force (constant coefficient, matching Genesis behavior)
+        friction_force = -self.friction_coefficient * self.state.v
 
         # Rotational noise
         rotational_noise = np.random.normal(self.rotational_noise_mean, self.rotational_noise_std)
@@ -231,6 +231,14 @@ class DefaultBody(Body):
             'y': (-5.0, 5.0),
             'z': (0.0, 10.0)
         }
+
+    def set_friction(self, friction_coefficient: float) -> None:
+        """Set the friction coefficient for this body."""
+        self.friction_coefficient = friction_coefficient
+
+    def set_velocity(self, velocity: np.ndarray) -> None:
+        """Set the velocity of this body."""
+        self.state.v = velocity.copy()
 
     def apply_force(self, force: np.ndarray) -> None:
         """Apply a force vector to the hovercraft."""

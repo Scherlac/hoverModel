@@ -97,6 +97,38 @@ def test_default_body_mass_consistency(backend_env):
     assert body.mass == 1.0, f"Expected mass=1.0, got {body.mass}"
 
 
+def test_sliding_friction_behavior(backend_env):
+    """Test that friction behavior is consistent between backends (using Genesis as reference)."""
+    env = backend_env
+    
+    # Set initial velocity and position
+    body = env.bodies[0]
+    initial_velocity = np.array([2.0, 0.0, 0.0])
+    body.set_velocity(initial_velocity)
+    body.state.r = np.array([0.0, 0.0, 1.0])
+
+    # Configure friction
+    # NO DIFFERENTIATION BASED ON BACKEND!!
+    body.set_friction(10.0)  # High friction for testing
+
+    initial_position = body.state.r.copy()
+    
+    # Run simulation with no controls
+    env.run_simulation_with_controls([], steps=30)
+    
+    final_velocity = body.state.v
+    final_position = body.state.r
+
+    # Distance traveled should be reasonable
+    distance_traveled = final_position[0] - initial_position[0]
+    assert distance_traveled > 0.5, f"Body should travel some distance: {distance_traveled}"
+    assert distance_traveled < 1.0, f"Body should not travel too far: {distance_traveled}"
+
+    # Check that x-velocity remains high (friction is weak in both backends)
+    assert final_velocity[0] > 1.5, \
+        f"X-velocity should remain high: initial {initial_velocity[0]}, final {final_velocity[0]}"
+
+
 def test_simulation_runs_without_errors(backend_env):
     """Test that simulation completes without raising exceptions."""
     env = backend_env

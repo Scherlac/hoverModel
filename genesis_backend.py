@@ -82,7 +82,7 @@ class GenesisPhysics(PhysicsEngine):
                     scale=body_config.get('scale', 1.0),  # Changed from 0.1 to 1.0 to match Open3D size
                     pos=tuple(body_config.get('initial_pos', [0.0, 0.0, 1.0])),
                 ),
-                material=gs.materials.Rigid(rho=0.2)  # Set density to 0.2 to get mass ≈ 1.0
+                material=gs.materials.Rigid(rho=0.2, friction=1.0)  # Set density to 0.2 to get mass ≈ 1.0, higher friction
             )
         elif body_type == 'sphere':
             entity = self.scene.add_entity(
@@ -90,7 +90,7 @@ class GenesisPhysics(PhysicsEngine):
                     radius=body_config.get('radius', 0.1),
                     pos=tuple(body_config.get('initial_pos', [0.0, 0.0, 1.0])),
                 ),
-                material=gs.materials.Rigid(rho=0.2)  # Set density to 0.2 to get mass ≈ 1.0
+                material=gs.materials.Rigid(rho=0.2, friction=1.0)  # Set density to 0.2 to get mass ≈ 1.0, higher friction
             )
         else:
             raise ValueError(f"Unsupported body type: {body_type}")
@@ -260,6 +260,27 @@ class GenesisRigidBody(Body):
             'z': (0.0, 10.0)
         }
 
+    def set_friction(self, friction_coefficient: float) -> None:
+        """Set the friction coefficient for this body."""
+        # Note: Genesis material friction cannot be changed after entity creation
+        # This stores the value for reference, but actual friction is set during entity creation
+        self.friction_coefficient = friction_coefficient
+        # TODO: If Genesis supports dynamic material changes, implement here
+
+    def set_velocity(self, velocity: np.ndarray) -> None:
+        """Set the velocity of this body."""
+        self.state.v = velocity.copy()
+        # Try to set velocity on the Genesis entity
+        # If scene is not built yet, this will be deferred until first step
+        try:
+            # Set DOF velocity [vx, vy, vz, wx, wy, wz]
+            dofs_velocity = np.concatenate([velocity, [0.0, 0.0, 0.0]])  # No angular velocity
+            self.entity.set_dofs_velocity(dofs_velocity)
+        except Exception as e:
+            # Scene not built yet, store for later
+            self._pending_velocity = velocity.copy()
+            # print(f"Warning: Could not set velocity on Genesis entity (scene not built): {e}")
+
     def apply_force(self, force: np.ndarray) -> None:
         """Apply a force vector to the Genesis body."""
         self.control_force = np.array(force, dtype=float)
@@ -349,6 +370,15 @@ class GenesisRigidBody(Body):
     def get_state(self) -> BodyState:
         """Get current body state from Genesis entity."""
         try:
+            # Apply any pending velocity if scene is now built
+            if hasattr(self, '_pending_velocity'):
+                try:
+                    dofs_velocity = np.concatenate([self._pending_velocity, [0.0, 0.0, 0.0]])
+                    self.entity.set_dofs_velocity(dofs_velocity)
+                    del self._pending_velocity
+                except Exception:
+                    pass  # Still not ready
+            
             # Get position from Genesis
             pos = self.entity.get_pos()
             self.state.r = np.array(pos)

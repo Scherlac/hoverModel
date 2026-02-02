@@ -260,6 +260,24 @@ class Body(ABC):
         """Get movement bounds for this body type."""
         pass
 
+    def set_friction(self, friction_coefficient: float) -> None:
+        """
+        Set the friction coefficient for this body.
+        
+        Args:
+            friction_coefficient: Friction coefficient value
+        """
+        # Default implementation - can be overridden by subclasses
+        pass
+    def set_velocity(self, velocity: np.ndarray) -> None:
+        """
+        Set the velocity of this body.
+        
+        Args:
+            velocity: Velocity vector [vx, vy, vz]
+        """
+        self.state.v = velocity.copy()
+
     def apply_force(self, force: np.ndarray) -> None:
         """Apply a force vector to the body."""
         # Default implementation - can be overridden by subclasses
